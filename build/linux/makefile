@@ -1,14 +1,13 @@
-SHELL = /bin/bash
-
 NAME 		= grassroots
-DIR_SRC = $(DIR_SERVER_SRC_ROOT)/httpd/mod_grassroots/src
-DIR_INCLUDE = $(DIR_SERVER_SRC_ROOT)/httpd/mod_grassroots/include
-CC		= g++
-CXX		= g++
-MAKEDEPEND 	= gcc -MM -MF
+DIR_BUILD :=  $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
+DIR_SRC := $(realpath $(DIR_BUILD)/../../src)
+DIR_INCLUDE := $(realpath $(DIR_BUILD)/../../include)
 
-DIR_OBJS = $(BUILD)
+ifeq ($(DIR_BUILD_CONFIG),)
+export DIR_BUILD_CONFIG := $(realpath $(DIR_BUILD)/../../../../build-config/linux)
+endif
 
+include $(DIR_BUILD_CONFIG)/project.properties
 
 
 ifeq ($(DIR_APACHE),)
@@ -35,11 +34,6 @@ ifeq ($(DIR_ROOT),)
 export DIR_ROOT = $(realpath $(../../..))
 endif
 
-ifneq ($(PROPERTIES_SET),1)
-include $(DIR_BUILD_ROOT)/project.properties
-endif
-
-
 CFLAGS 	+=  -Wc,-Wall  -Wc,-fpic
 
 ifeq ($(BUILD),release)
@@ -52,12 +46,11 @@ else
 endif
 
 
-VPATH	= \
+VPATH	:= \
 	$(DIR_SRC) \
 	$(DIR_GRASSROOTS_SERVER_SRC) 	
 
-INCLUDES = \
-	-I ../include \
+INCLUDES := \
 	-I$(DIR_APACHE_INC) \
 	-I$(DIR_INCLUDE) \
 	-I$(DIR_GRASSROOTS_SERVER_INC) \
@@ -88,7 +81,7 @@ LDFLAGS += -L$(DIR_GRASSROOTS_UTIL_LIB) -l$(GRASSROOTS_UTIL_LIB_NAME) \
 
 
 
-include $(DIR_BUILD_ROOT)/irods.mk
+-include $(DIR_BUILD_CONFIG)/irods.mk
  
 # Compile and generate dependency info
 # 1. Compile the .c file
