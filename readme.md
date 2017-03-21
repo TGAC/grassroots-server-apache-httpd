@@ -1,8 +1,8 @@
-﻿#Apache httpd module
+# Apache httpd module
 
 This module allows the Grassroots infrastructure to be used with an [Apache httpd](http://httpd.apache.org) web server. This means that the Grassroots infrastructure can take advantage of all of the functionality that httpd provides.
 
-##Installation
+## Installation
 
 To build this module, you need the [grassroots core](https://github.com/TGAC/grassroots-core) and [grassroots build config](https://github.com/TGAC/grassroots-build-config) installed and configured. 
 
@@ -24,11 +24,11 @@ and then
 
 to install the module into the appropriate httpd installation allowing the Grassroots system to be used in conjunction with it.
 
-##Configuration
+## Configuration
 
 As well as installing the module, httpd requires a couple of alterations to allow the Grassroots system to be available.
 
-###Module configuration file
+### Module configuration file
 
 The first change is to set up the module configuration. This is done using a standard httpd configuration file and an example is at ```conf/httpd_grassroots.conf``` in this repository.
 It requires some modules to provide the caching functionality to store job data between requests in a multi-process and multi-threaded environment
@@ -66,7 +66,7 @@ CacheSocacheMaxSize 102400
 </LocationMatch>
 ~~~
 
-###Updating envvars
+### Updating envvars
 
 The Apache httpd server also needs to have access to the paths where the Grassroots infrastructure and its dependencies are located. This is done be editing the ```envvars``` file that is part of the httpd distribution and is normally located at ```bin/envvars```.
 
