@@ -85,6 +85,7 @@ static apr_status_t CleanUpOutputStream (void *value_p);
 
 static apr_status_t ClearServerResources (void *value_p);
 
+static apr_status_t CleanUpTasks (void *value_p);
 
 /*
  * Based on code taken from http://marc.info/?l=apache-modules&m=107669698011831
@@ -250,10 +251,11 @@ static void GrassrootsChildInit (apr_pool_t *pool_p, server_rec *server_p)
 									if (error_p)
 										{
 											/* Mark the streams for deletion when the server pool expires */
-											//apr_pool_t *pool_p = server_p -> process -> pool;
-
 											SetDefaultErrorStream (error_p);
 											apr_pool_cleanup_register (pool_p, error_p, CleanUpOutputStream, apr_pool_cleanup_null);
+
+											/* Do any clean up required by the running of asynchronous tasks */
+											apr_pool_cleanup_register (pool_p, NULL, CleanUpTasks, apr_pool_cleanup_null);
 										}
 									else
 										{
@@ -394,6 +396,17 @@ static const char *SetGrassrootsRootPath (cmd_parms *cmd_p, void *cfg_p, const c
 
 	return NULL;
 }
+
+
+
+
+static apr_status_t CleanUpTasks (void *value_p)
+{
+	apr_status_t status = CloseAllAsyncTasks () ? APR_SUCCESS : APR_EGENERAL;
+
+	return APR_SUCCESS;
+}
+
 
 
 /* Get the cache provider that we are going to use for the jobs manager storage */
