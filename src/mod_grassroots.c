@@ -44,6 +44,7 @@
 #include "streams.h"
 #include "apache_output_stream.h"
 #include "util_mutex.h"
+#include "async_task.h"
 
 #include "mod_grassroots_config.h"
 #include "apr_jobs_manager.h"
