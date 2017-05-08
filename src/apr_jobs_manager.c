@@ -171,69 +171,74 @@ static bool AddServiceJobToAPRJobsManager (JobsManager *jobs_manager_p, uuid_t j
 	unsigned char *value_p = NULL;
 	unsigned int value_length = 0;
 	char uuid_s [UUID_STRING_BUFFER_SIZE];
-	Service *service_p = job_p -> sj_service_p;
 
-	json_t *job_json_p = NULL;
+	Service *service_p = GetServiceFromServiceJob (job_p);
 
-	ConvertUUIDToString (job_key, uuid_s);
-
-	if (DoesServiceHaveCustomServiceJobSerialisation (service_p))
+	if (service_p)
 		{
-			job_json_p = CreateSerialisedJSONForServiceJobFromService (service_p, job_p);
+			json_t *job_json_p = NULL;
 
-			if (!job_json_p)
+			ConvertUUIDToString (job_key, uuid_s);
+
+			if (DoesServiceHaveCustomServiceJobSerialisation (service_p))
 				{
-					PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to create custom serialised job for %s from %s", uuid_s, GetServiceName (service_p));
-				}
-		}
-	else
-		{
-			/* We store the c-style string for the ServiceJob's json */
-			job_json_p = GetServiceJobAsJSON (job_p);
+					job_json_p = CreateSerialisedJSONForServiceJobFromService (service_p, job_p);
 
-			if (!job_json_p)
-				{
-					PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to create serialised job for %s from %s", uuid_s, GetServiceName (service_p));
-				}
-		}
-
-
-	if (job_json_p)
-		{
-			char *job_s = json_dumps (job_json_p, JSON_INDENT (2));
-
-			if (job_s)
-				{
-					/*
-					 * include the terminating \0 to make sure
-					 * the value as a valid c-style string
-					 */
-					value_length = strlen (job_s) + 1;
-					value_p = (unsigned char *) job_s;
-
-					#if APR_JOBS_MANAGER_DEBUG >= STM_LEVEL_FINEST
+					if (!job_json_p)
 						{
-							PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "Adding \"%s\"=\"%s\"", uuid_s, value_p);
+							PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to create custom serialised job for %s from %s", uuid_s, GetServiceName (service_p));
 						}
-					#endif
-
-					success_flag = AddObjectToAPRGlobalStorage (manager_p -> ajm_store_p, job_key, UUID_RAW_SIZE, value_p, value_length);
-
-					#if APR_JOBS_MANAGER_DEBUG >= STM_LEVEL_FINER
-						{
-							PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "Added \"%s\"=\"%s\", success=%d", uuid_s, value_p, success_flag);
-						}
-					#endif
-
-
-					free (job_s);
-				}		/* if (job_s) */
+				}
 			else
 				{
-					PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "json_dumps failed for \"%s\"", uuid_s);
+					/* We store the c-style string for the ServiceJob's json */
+					job_json_p = GetServiceJobAsJSON (job_p);
+
+					if (!job_json_p)
+						{
+							PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to create serialised job for %s from %s", uuid_s, GetServiceName (service_p));
+						}
 				}
 
-		}		/* if (job_json_p) */
+
+			if (job_json_p)
+				{
+					char *job_s = json_dumps (job_json_p, JSON_INDENT (2));
+
+					if (job_s)
+						{
+							/*
+							 * include the terminating \0 to make sure
+							 * the value as a valid c-style string
+							 */
+							value_length = strlen (job_s) + 1;
+							value_p = (unsigned char *) job_s;
+
+							#if APR_JOBS_MANAGER_DEBUG >= STM_LEVEL_FINEST
+								{
+									PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "Adding \"%s\"=\"%s\"", uuid_s, value_p);
+								}
+							#endif
+
+							success_flag = AddObjectToAPRGlobalStorage (manager_p -> ajm_store_p, job_key, UUID_RAW_SIZE, value_p, value_length);
+
+							#if APR_JOBS_MANAGER_DEBUG >= STM_LEVEL_FINER
+								{
+									PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "Added \"%s\"=\"%s\", success=%d", uuid_s, value_p, success_flag);
+								}
+							#endif
+
+
+							free (job_s);
+						}		/* if (job_s) */
+					else
+						{
+							PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "json_dumps failed for \"%s\"", uuid_s);
+						}
+
+				}		/* if (job_json_p) */
+
+		}		/* if (service_p) */
 
 
 	return success_flag;
