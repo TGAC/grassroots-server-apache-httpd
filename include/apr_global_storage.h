@@ -39,7 +39,7 @@
  *
  * This datatype uses the Apache httpd shared object module functionality to store data that will be
  * needed for longer than a single request.
- *
+ *-
  * @see APRJobsManager
  * @see APRServersManager
  * @ingroup httpd_server
@@ -109,6 +109,13 @@ typedef struct APRGlobalStorage
 	 * @param value_p The value.
 	 */
 	void (*ags_free_key_and_value_fn) (unsigned char *key_p, void *value_p);
+
+
+	unsigned char *(*ags_compress_fn) (char *src_s, const uint32 src_length, uint32 *dest_length_p);
+
+
+	unsigned char *(*ags_decompress_fn) (char *src_s, const uint32 src_length, uint32 *dest_length_p);
+
 
 } APRGlobalStorage;
 

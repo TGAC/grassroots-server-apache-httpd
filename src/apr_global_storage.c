@@ -369,16 +369,43 @@ bool AddObjectToAPRGlobalStorage (APRGlobalStorage *storage_p, const void *raw_k
 				{
 					apr_time_t end_of_time = APR_INT64_MAX;
 
-
 					/* store it */
-					status = storage_p -> ags_socache_provider_p -> store (storage_p -> ags_socache_instance_p,
-																			 storage_p -> ags_server_p,
-					                              key_p,
-					                              key_len,
-					                              end_of_time,
-					                              value_p,
-					                              value_length,
-					                              storage_p -> ags_pool_p);
+					if (storage_p -> ags_compress_fn)
+						{
+							uint32 compressed_data_length = 0;
+							unsigned char *compressed_data_p = storage_p -> ags_compress_fn (value_p, value_length, &compressed_data_length);
+
+							if (compressed_data_p)
+								{
+									status = storage_p -> ags_socache_provider_p -> store (storage_p -> ags_socache_instance_p,
+																							 storage_p -> ags_server_p,
+																								key_p,
+																								key_len,
+																								end_of_time,
+																								compressed_data_p,
+																								compressed_data_length,
+																								storage_p -> ags_pool_p);
+
+									FreeMemory (compressed_data_p);
+								}
+							else
+								{
+									PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to compress data, unable to store");
+									status = APR_ENOMEM;
+								}
+						}
+					else
+						{
+							status = storage_p -> ags_socache_provider_p -> store (storage_p -> ags_socache_instance_p,
+																					 storage_p -> ags_server_p,
+																						key_p,
+																						key_len,
+																						end_of_time,
+																						value_p,
+																						value_length,
+																						storage_p -> ags_pool_p);
+						}
+
 
 					if (status == APR_SUCCESS)
 						{
@@ -546,7 +573,28 @@ static void *FindObjectFromAPRGlobalStorage (APRGlobalStorage *storage_p, const 
 
 									if (status == APR_SUCCESS)
 										{
-											result_p = temp_p;
+											if (storage_p -> ags_decompress_fn)
+												{
+													uint64 uncompressed_length = 0;
+													unsigned char *uncompressed_data_p = storage_p -> ags_decompress_fn (temp_p, array_size, &uncompressed_length);
+
+													if (uncompressed_data_p)
+														{
+															result_p = uncompressed_data_p;
+														}
+													else
+														{
+															PrintErrors (STM_LEVEL_SEVERE,  __FILE__, __LINE__,"Failed to uncompress data for \"%s\"", key_s);
+														}
+
+													FreeMemory (temp_p);
+													temp_p = NULL;
+
+												}
+											else
+												{
+													result_p = temp_p;
+												}
 
 											if (remove_flag == true)
 												{
