@@ -148,7 +148,9 @@ bool PostConfigAPRJobsManager (APRJobsManager *manager_p, apr_pool_t *config_poo
 {
 	/* Set up the maximum expiry time as we never want it to expire */
 	apr_interval_time_t expiry = 0;
-	struct ap_socache_hints job_cache_hints = { UUID_STRING_BUFFER_SIZE, sizeof (ServiceJob *), expiry };
+	apr_size_t average_obj_size = 16384;
+
+	struct ap_socache_hints job_cache_hints = { UUID_STRING_BUFFER_SIZE, average_obj_size, expiry };
 
 	return PostConfigureGlobalStorage(manager_p -> ajm_store_p, config_pool_p, server_p, provider_name_s, &job_cache_hints);
 }
