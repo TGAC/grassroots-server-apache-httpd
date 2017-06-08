@@ -35,6 +35,10 @@
 #include "memory_allocations.h"
 #include "util_mutex.h"
 
+#ifdef USE_BZIP2
+#include "bzip2_util.h"
+#endif
+
 #ifdef _DEBUG
 #define APR_JOBS_MANAGER_DEBUG	(STM_LEVEL_FINEST)
 #else
@@ -87,16 +91,25 @@ APRJobsManager *InitAPRJobsManager (server_rec *server_p, apr_pool_t *pool_p, co
 	if (manager_p)
 		{
 			unsigned char *(*make_key_fn) (const void *data_p, uint32 raw_key_length, uint32 *key_len_p) = MakeKeyFromUUID;
+			unsigned char *(*compress_fn) (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p) = NULL;
+			unsigned char *(*decompress_fn) (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p) = NULL;
+			APRGlobalStorage *storage_p = NULL;
 
-			APRGlobalStorage *storage_p = AllocateAPRGlobalStorage (pool_p,
-																															HashUUIDForAPR,
-																															make_key_fn,
-																															FreeAPRServerJob,
-																															server_p,
-																															s_mutex_filename_s,
-																															APR_JOBS_MANAGER_CACHE_ID_S,
-																															provider_name_s);
+			#ifdef USE_BZIP2
+			compress_fn  = CompressToBZ2;
+			decompress_fn  = UncompressFromBZ2;
+			#endif
 
+			storage_p = AllocateAPRGlobalStorage (pool_p,
+																						HashUUIDForAPR,
+																						make_key_fn,
+																						FreeAPRServerJob,
+																						server_p,
+																						s_mutex_filename_s,
+																						APR_JOBS_MANAGER_CACHE_ID_S,
+																						provider_name_s,
+																						compress_fn,
+																						decompress_fn);
 
 			if (storage_p)
 				{

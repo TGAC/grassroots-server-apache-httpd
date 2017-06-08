@@ -405,7 +405,7 @@ static apr_status_t CleanUpTasks (void *value_p)
 {
 	apr_status_t status = CloseAllAsyncTasks () ? APR_SUCCESS : APR_EGENERAL;
 
-	return APR_SUCCESS;
+	return status;
 }
 
 

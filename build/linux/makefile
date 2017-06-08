@@ -9,6 +9,7 @@ endif
 
 include $(DIR_BUILD_CONFIG)/project.properties
 
+-include $(DIR_BUILD)/apache_server_module.properties
 
 ifeq ($(DIR_APACHE),)
 HTTPD := $(shell httpd -V) 
@@ -82,7 +83,13 @@ LDFLAGS += -L$(DIR_GRASSROOTS_UTIL_LIB) -l$(GRASSROOTS_UTIL_LIB_NAME) \
 	-L$(DIR_GRASSROOTS_TASK_LIB) -l$(GRASSROOTS_TASK_LIB_NAME) 
 
 
--include $(DIR_BUILD_CONFIG)/irods.mk
+ifeq ($(USE_COMPRESSION),bzip2)
+SRCS 	+= $(DIR_SRC)/bzip2_util.c
+CFLAGS += -DUSE_BZIP2
+LDFLAGS += -L$(DIR_BZIP2_LIB) -l$(BZIP2_LIB_NAME) 
+INCLUDES += -I$(DIR_BZIP2_INC)	
+endif
+
  
 # Compile and generate dependency info
 # 1. Compile the .c file
@@ -109,6 +116,7 @@ all:
 	@echo "DIR_APACHE_MODULES  $(DIR_APACHE_MODULES)"
 	@echo "GRASSROOTS_INSTANCE -$(GRASSROOTS_INSTANCE)-"
 	@echo "APXS $(APXS)"
+	@echo "USE_COMPRESSION $(USE_COMPRESSION)"
 	$(APXS) -n $(NAME) $(INCLUDES) -D UNIX=1 -D BUILD=$(BUILD) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -c $(SRCS)
 		
 clean:

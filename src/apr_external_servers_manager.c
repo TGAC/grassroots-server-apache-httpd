@@ -36,6 +36,12 @@
 #include "json_tools.h"
 #include "grassroots_config.h"
 
+
+#ifdef USE_BZIP2
+#include "bzip2_util.h"
+#endif
+
+
 #ifdef _DEBUG
 #define APR_SERVERS_MANAGER_DEBUG	(STM_LEVEL_FINEST)
 #else
@@ -82,14 +88,27 @@ APRServersManager *InitAPRServersManager (server_rec *server_p, apr_pool_t *pool
 
 	if (manager_p)
 		{
-			APRGlobalStorage *storage_p = AllocateAPRGlobalStorage (pool_p,
-			                                                        HashUUIDForAPR,
-			                                                        NULL,
-			                                                        FreeAPRExternalServer,
-			                                                        server_p,
-			                                                        s_mutex_filename_s,
-			                                                        APR_SERVERS_MANAGER_CACHE_ID_S,
-			                                                        provider_name_s);
+			unsigned char *(*compress_fn) (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p) = NULL;
+			unsigned char *(*decompress_fn) (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p) = NULL;
+			APRGlobalStorage *storage_p = NULL;
+
+			#ifdef USE_BZIP2
+			compress_fn  = CompressToBZ2;
+			decompress_fn  = UncompressFromBZ2;
+			#endif
+
+
+			storage_p = AllocateAPRGlobalStorage (pool_p,
+																						HashUUIDForAPR,
+																						NULL,
+																						FreeAPRExternalServer,
+																						server_p,
+																						s_mutex_filename_s,
+																						APR_SERVERS_MANAGER_CACHE_ID_S,
+																						provider_name_s,
+																						compress_fn,
+																						decompress_fn);
+
 			if (storage_p)
 				{
 					manager_p -> asm_store_p = storage_p;
