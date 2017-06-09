@@ -26,6 +26,10 @@
 
 static bool SaveBZ2Data (const char *data_p, const unsigned int data_length, const char *key_s);
 
+static void LogDataHead (char *data_p, unsigned int data_length, const char *prefix_s);
+
+
+static int s_index = 0;
 
 /*
  * These routines compress and decompress data to bzip2 format.
@@ -34,7 +38,7 @@ static bool SaveBZ2Data (const char *data_p, const unsigned int data_length, con
  * the uncompressed data followed by the actual data.
  */
 
-unsigned char *CompressToBZ2 (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p, const char * const key_s)
+unsigned char *CompressToBZ2 (unsigned char *src_s, unsigned int src_length, unsigned int *dest_length_p, const char * const key_s)
 {
 	unsigned int temp_dest_length = src_length * sizeof (char);
 	char *dest_p = (char *) AllocMemory (temp_dest_length + sizeof (unsigned int));
@@ -44,6 +48,7 @@ unsigned char *CompressToBZ2 (unsigned char *src_s, const unsigned int src_lengt
 			const int block_size_100k = 9;
 			const int verbosity = 4;
 			const int work_factor = 0;
+			int res;
 
 			#if BZIP2_UTIL_DEBUG >= STM_LEVEL_FINEST
 				{
@@ -59,27 +64,22 @@ unsigned char *CompressToBZ2 (unsigned char *src_s, const unsigned int src_lengt
 			#endif
 
 
-			int res = BZ2_bzBuffToBuffCompress (dest_p + sizeof (unsigned int), &temp_dest_length, (char *) src_s, src_length, block_size_100k, verbosity, work_factor);
+		#if BZIP2_UTIL_DEBUG >= STM_LEVEL_FINER
+		LogDataHead ((char *) src_s, src_length, "uncompressed src: ");
+		#endif
+
+
+			res = BZ2_bzBuffToBuffCompress (dest_p + sizeof (unsigned int), &temp_dest_length, (char *) src_s, src_length, block_size_100k, verbosity, work_factor);
 
 			if (res == BZ_OK)
 				{
 					unsigned int *uncompressed_length_p = (unsigned int *) dest_p;
 
+
 					*uncompressed_length_p = src_length;
-					*dest_length_p = temp_dest_length;
 
-					#if BZIP2_UTIL_DEBUG >= STM_LEVEL_FINER
-						{
-							char buffer_s [32];
-
-							memset (buffer_s, 0, 32);
-
-							snprintf (buffer_s,  src_length < 31 ? src_length : 31, "%s", src_s);
-
-							PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "Compressed \"%s ...\" " UINT32_FMT " bytes long to " UINT32_FMT, buffer_s, src_length, *dest_length_p);
-
-						}
-					#endif
+					/* Add the length of the size chunk */
+					*dest_length_p = temp_dest_length + sizeof (unsigned int);
 
 					#if BZIP2_UTIL_DEBUG >= STM_LEVEL_FINEST
 						{
@@ -94,6 +94,9 @@ unsigned char *CompressToBZ2 (unsigned char *src_s, const unsigned int src_lengt
 						}
 					#endif
 
+					#if BZIP2_UTIL_DEBUG >= STM_LEVEL_FINER
+					LogDataHead (dest_p, temp_dest_length, "compressed dest: ");
+					#endif
 
 					return ((unsigned char *) dest_p);
 				}
@@ -134,7 +137,7 @@ unsigned char *CompressToBZ2 (unsigned char *src_s, const unsigned int src_lengt
 
 
 
-unsigned char *UncompressFromBZ2 (unsigned char *src_p, const unsigned int src_length, unsigned int *dest_length_p, const char * const key_s)
+unsigned char *UncompressFromBZ2 (unsigned char *src_p, unsigned int src_length, unsigned int *dest_length_p, const char * const key_s)
 {
 	unsigned int *uncompressed_length_p = (unsigned int *) src_p;
 	unsigned int uncompressed_length = *uncompressed_length_p;
@@ -144,6 +147,11 @@ unsigned char *UncompressFromBZ2 (unsigned char *src_p, const unsigned int src_l
 	PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "Uncompressing from " UINT32_FMT " bytes long to " UINT32_FMT, src_length, *uncompressed_length_p);
 	#endif
 
+
+	#if BZIP2_UTIL_DEBUG >= STM_LEVEL_FINER
+	LogDataHead ((char *) src_p, src_length, "compressed src: ");
+	#endif
+
 	if (dest_p)
 		{
 			const int small = 0;
@@ -151,6 +159,12 @@ unsigned char *UncompressFromBZ2 (unsigned char *src_p, const unsigned int src_l
 
 			/* move past the uncompressed length value */
 			src_p += sizeof (unsigned int);
+			//src_length -= sizeof (unsigned int);
+
+			#if BZIP2_UTIL_DEBUG >= STM_LEVEL_FINER
+			LogDataHead ((char *) src_p, src_length, "shuffled compressed src: ");
+			#endif
+
 
 			int res = BZ2_bzBuffToBuffDecompress (dest_p, &uncompressed_length, (char *) src_p, src_length, small, verbosity);
 
@@ -161,6 +175,12 @@ unsigned char *UncompressFromBZ2 (unsigned char *src_p, const unsigned int src_l
 					#if BZIP2_UTIL_DEBUG >= STM_LEVEL_FINER
 					PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "Uncompressed from " UINT32_FMT " bytes long to " UINT32_FMT, src_length, uncompressed_length);
 					#endif
+
+					#if BZIP2_UTIL_DEBUG >= STM_LEVEL_FINER
+					LogDataHead (dest_p, uncompressed_length, "uncompressed dest: ");
+					#endif
+
+
 
 					return ((unsigned char *) dest_p);
 				}
@@ -212,7 +232,11 @@ unsigned char *UncompressFromBZ2 (unsigned char *src_p, const unsigned int src_l
 static bool SaveBZ2Data (const char *data_p, const unsigned int data_length, const char *key_s)
 {
 	bool success_flag = false;
-	char *filename_s = MakeFilename ("/home/billy", key_s);
+	char buffer_s [4];
+
+	snprintf (buffer_s, 3, "%d", s_index ++);
+
+	char *filename_s = ConcatenateVarargsStrings (key_s, "-", buffer_s);
 
 	if (filename_s)
 		{
@@ -237,4 +261,18 @@ static bool SaveBZ2Data (const char *data_p, const unsigned int data_length, con
 }
 
 
+
+static void LogDataHead (char *data_p, unsigned int data_length, const char *prefix_s)
+{
+	unsigned int limit = data_length; //< 63 ? data_length : 63;
+	unsigned int i;
+
+	PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "data length: " UINT32_FMT " limit: " UINT32_FMT, data_length, limit);
+
+
+	for (i = 0; i <= limit; i += 4, data_p += 4)
+		{
+			PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "%s: %.5" UINT32_FMT_IDENT ": %08X: \"%c%c%c%c\"", prefix_s, i, * ((uint32 *) data_p), *data_p, * (data_p + 1), * (data_p + 2), * (data_p + 3));
+		}
+}
 
