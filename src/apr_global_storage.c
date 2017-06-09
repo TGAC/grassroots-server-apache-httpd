@@ -59,7 +59,8 @@ static bool GetLargestEntrySize (APRGlobalStorage *storage_p, unsigned int *size
 
 
 APRGlobalStorage *AllocateAPRGlobalStorage (apr_pool_t *pool_p, apr_hashfunc_t hash_fn, unsigned char *(*make_key_fn) (const void *data_p, uint32 raw_key_length, uint32 *key_len_p), void (*free_key_and_value_fn) (unsigned char *key_p, void *value_p), server_rec *server_p, const char *mutex_filename_s, const char *cache_id_s, const char *provider_name_s,
-	unsigned char *(*compress_fn) (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p), unsigned char *(*decompress_fn) (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p))
+	unsigned char *(*compress_fn) (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p, const char * const key_s),
+	unsigned char *(*decompress_fn) (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p, const char * const key_s))
 {
 	APRGlobalStorage *store_p = (APRGlobalStorage *) AllocMemory (sizeof (APRGlobalStorage));
 
@@ -84,7 +85,8 @@ APRGlobalStorage *AllocateAPRGlobalStorage (apr_pool_t *pool_p, apr_hashfunc_t h
 
 
 bool InitAPRGlobalStorage (APRGlobalStorage *storage_p, apr_pool_t *pool_p, apr_hashfunc_t hash_fn, unsigned char *(*make_key_fn) (const void *data_p, uint32 raw_key_length, uint32 *key_len_p), void (*free_key_and_value_fn) (unsigned char *key_p, void *value_p), server_rec *server_p, const char *mutex_filename_s, const char *cache_id_s, const char *provider_name_s,
-	unsigned char *(*compress_fn) (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p), unsigned char *(*decompress_fn) (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p))
+	unsigned char *(*compress_fn) (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p, const char * const key_s),
+	unsigned char *(*decompress_fn) (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p, const char * const key_s))
 {
 	ap_socache_provider_t *provider_p = ap_lookup_provider (AP_SOCACHE_PROVIDER_GROUP, provider_name_s, AP_SOCACHE_PROVIDER_VERSION);
 
@@ -378,7 +380,7 @@ bool AddObjectToAPRGlobalStorage (APRGlobalStorage *storage_p, const void *raw_k
 					if (storage_p -> ags_compress_fn)
 						{
 							unsigned int compressed_data_length = 0;
-							unsigned char *compressed_data_p = storage_p -> ags_compress_fn (value_p, value_length, &compressed_data_length);
+							unsigned char *compressed_data_p = storage_p -> ags_compress_fn (value_p, value_length, &compressed_data_length, key_s);
 
 							if (compressed_data_p)
 								{
@@ -581,7 +583,7 @@ static void *FindObjectFromAPRGlobalStorage (APRGlobalStorage *storage_p, const 
 											if (storage_p -> ags_decompress_fn)
 												{
 													unsigned int uncompressed_length = 0;
-													unsigned char *uncompressed_data_p = storage_p -> ags_decompress_fn (temp_p, array_size, &uncompressed_length);
+													unsigned char *uncompressed_data_p = storage_p -> ags_decompress_fn (temp_p, array_size, &uncompressed_length, key_s);
 
 													if (uncompressed_data_p)
 														{

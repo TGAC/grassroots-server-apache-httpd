@@ -13,7 +13,8 @@
 #include "bzip2_util.h"
 #include "memory_allocations.h"
 #include "streams.h"
-
+#include "string_utils.h"
+#include "filesystem_utils.h"
 
 
 #ifdef _DEBUG
@@ -23,6 +24,9 @@
 #endif
 
 
+static bool SaveBZ2Data (const char *data_p, const unsigned int data_length, const char *key_s);
+
+
 /*
  * These routines compress and decompress data to bzip2 format.
  *
@@ -30,7 +34,7 @@
  * the uncompressed data followed by the actual data.
  */
 
-unsigned char *CompressToBZ2 (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p)
+unsigned char *CompressToBZ2 (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p, const char * const key_s)
 {
 	unsigned int temp_dest_length = src_length * sizeof (char);
 	char *dest_p = (char *) AllocMemory (temp_dest_length + sizeof (unsigned int));
@@ -38,8 +42,22 @@ unsigned char *CompressToBZ2 (unsigned char *src_s, const unsigned int src_lengt
 	if (dest_p)
 		{
 			const int block_size_100k = 9;
-			const int verbosity = 0;
+			const int verbosity = 4;
 			const int work_factor = 0;
+
+			#if BZIP2_UTIL_DEBUG >= STM_LEVEL_FINEST
+				{
+					char *filename_s = ConcatenateStrings (key_s, ".json");
+
+					if (filename_s)
+						{
+							SaveBZ2Data ((char *) src_s, src_length, filename_s);
+
+							FreeCopiedString (filename_s);
+						}
+				}
+			#endif
+
 
 			int res = BZ2_bzBuffToBuffCompress (dest_p + sizeof (unsigned int), &temp_dest_length, (char *) src_s, src_length, block_size_100k, verbosity, work_factor);
 
@@ -62,6 +80,20 @@ unsigned char *CompressToBZ2 (unsigned char *src_s, const unsigned int src_lengt
 
 						}
 					#endif
+
+					#if BZIP2_UTIL_DEBUG >= STM_LEVEL_FINEST
+						{
+							char *filename_s = ConcatenateStrings (key_s, ".bz2");
+
+							if (filename_s)
+								{
+									SaveBZ2Data (dest_p + sizeof (unsigned int), temp_dest_length, filename_s);
+
+									FreeCopiedString (filename_s);
+								}
+						}
+					#endif
+
 
 					return ((unsigned char *) dest_p);
 				}
@@ -102,7 +134,7 @@ unsigned char *CompressToBZ2 (unsigned char *src_s, const unsigned int src_lengt
 
 
 
-unsigned char *UncompressFromBZ2 (unsigned char *src_p, const unsigned int src_length, unsigned int *dest_length_p)
+unsigned char *UncompressFromBZ2 (unsigned char *src_p, const unsigned int src_length, unsigned int *dest_length_p, const char * const key_s)
 {
 	unsigned int *uncompressed_length_p = (unsigned int *) src_p;
 	unsigned int uncompressed_length = *uncompressed_length_p;
@@ -115,7 +147,7 @@ unsigned char *UncompressFromBZ2 (unsigned char *src_p, const unsigned int src_l
 	if (dest_p)
 		{
 			const int small = 0;
-			const int verbosity = 0;
+			const int verbosity = 4;
 
 			/* move past the uncompressed length value */
 			src_p += sizeof (unsigned int);
@@ -177,6 +209,32 @@ unsigned char *UncompressFromBZ2 (unsigned char *src_p, const unsigned int src_l
 
 
 
+static bool SaveBZ2Data (const char *data_p, const unsigned int data_length, const char *key_s)
+{
+	bool success_flag = false;
+	char *filename_s = MakeFilename ("/home/billy", key_s);
+
+	if (filename_s)
+		{
+			FILE *out_f = fopen (filename_s, "w");
+
+			if (out_f)
+				{
+					size_t res = fwrite (data_p, sizeof (char), data_length, out_f);
+
+					if (res != data_length)
+						{
+
+						}
+
+					fclose (out_f);
+				}
+
+			FreeCopiedString (filename_s);
+		}		/* if (filename_s) */
+
+	return success_flag;
+}
 
 
 

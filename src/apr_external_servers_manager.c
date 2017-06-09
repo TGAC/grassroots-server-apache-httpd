@@ -88,8 +88,8 @@ APRServersManager *InitAPRServersManager (server_rec *server_p, apr_pool_t *pool
 
 	if (manager_p)
 		{
-			unsigned char *(*compress_fn) (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p) = NULL;
-			unsigned char *(*decompress_fn) (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p) = NULL;
+			unsigned char *(*compress_fn) (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p, const char * const key_s) = NULL;
+			unsigned char *(*decompress_fn) (unsigned char *src_s, const unsigned int src_length, unsigned int *dest_length_p, const char * const key_s) = NULL;
 			APRGlobalStorage *storage_p = NULL;
 
 			#ifdef USE_BZIP2
