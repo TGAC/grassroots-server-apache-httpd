@@ -28,6 +28,8 @@ static bool SaveBZ2Data (const char *data_p, const unsigned int data_length, con
 
 static void LogDataHead (char *data_p, unsigned int data_length, const char *prefix_s);
 
+static char GetPrintableChar (const char c);
+
 
 static int s_index = 0;
 
@@ -266,13 +268,37 @@ static void LogDataHead (char *data_p, unsigned int data_length, const char *pre
 {
 	unsigned int limit = data_length; //< 63 ? data_length : 63;
 	unsigned int i;
+	char text_buffer_s [5];
 
 	PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "data length: " UINT32_FMT " limit: " UINT32_FMT, data_length, limit);
 
+	/* terminate the text buffer */
+	* (text_buffer_s + 4) = '\0';
 
-	for (i = 0; i <= limit; i += 4, data_p += 4)
+	for (i = 0; i <= limit; i += 4)
 		{
-			PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "%s: %.5" UINT32_FMT_IDENT ": %08X: \"%c%c%c%c\"", prefix_s, i, * ((uint32 *) data_p), *data_p, * (data_p + 1), * (data_p + 2), * (data_p + 3));
+			*text_buffer_s = GetPrintableChar (*data_p);
+			* (text_buffer_s + 1) = GetPrintableChar (* (++ data_p));
+			* (text_buffer_s + 2) = GetPrintableChar (* (++ data_p));
+			* (text_buffer_s + 3) = GetPrintableChar (* (++ data_p));
+
+			++ data_p;
+
+			PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "%s: %.5" UINT32_FMT_IDENT ": %08X: \"%s\"", prefix_s, i, * ((uint32 *) data_p), text_buffer_s);
 		}
 }
+
+
+static char GetPrintableChar (const char c)
+{
+	if (isprint (c))
+		{
+			return c;
+		}
+	else
+		{
+			return ".";
+		}
+}
+
 
