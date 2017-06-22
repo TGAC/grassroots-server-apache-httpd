@@ -316,23 +316,19 @@ static ServiceJob *QueryServiceJobFromAprJobsManager (JobsManager *jobs_manager_
 static ServiceJob *RebuildServiceJob (char *value_s)
 {
 	json_error_t err;
-	json_t *job_json_p = NULL;
-
-	job_json_p = json_loads (value_s, 0, &err);
+	ServiceJob *job_p = NULL;
+	json_t *job_json_p = json_loads (value_s, 0, &err);
 
 	if (job_json_p)
 		{
-			ServiceJob *job_p = CreateServiceJobFromJSON (job_json_p);
+			job_p = CreateServiceJobFromJSON (job_json_p);
 
-			if (job_p)
-				{
-					return job_p;
-				}
-			else
+			if (!job_p)
 				{
 					PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to create ServiceJob from \"%s\"", value_s);
 				}
 
+			json_decref (job_json_p);
 		}		/* if (job_json_p) */
 	else
 		{
