@@ -5,6 +5,7 @@
  *      Author: billy
  */
 
+#include <ctype.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -18,7 +19,7 @@
 
 
 #ifdef _DEBUG
-#define BZIP2_UTIL_DEBUG	(STM_LEVEL_FINEST)
+#define BZIP2_UTIL_DEBUG	(STM_LEVEL_INFO)
 #else
 #define BZIP2_UTIL_DEBUG	(STM_LEVEL_NONE)
 #endif
@@ -48,7 +49,7 @@ unsigned char *CompressToBZ2 (unsigned char *src_s, unsigned int src_length, uns
 	if (dest_p)
 		{
 			const int block_size_100k = 9;
-			const int verbosity = 4;
+			const int verbosity = 0;
 			const int work_factor = 0;
 			int res;
 
@@ -238,7 +239,7 @@ static bool SaveBZ2Data (const char *data_p, const unsigned int data_length, con
 
 	snprintf (buffer_s, 3, "%d", s_index ++);
 
-	char *filename_s = ConcatenateVarargsStrings (key_s, "-", buffer_s);
+	char *filename_s = ConcatenateVarargsStrings (key_s, "-", buffer_s, NULL);
 
 	if (filename_s)
 		{
@@ -297,7 +298,7 @@ static char GetPrintableChar (const char c)
 		}
 	else
 		{
-			return ".";
+			return '.';
 		}
 }
 

@@ -335,7 +335,7 @@ static ServiceJob *RebuildServiceJob (char *value_s)
 			PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to convert \"%s\" to json err \"%s\" at line %d, column %d", value_s, err.text, err.line, err.column);
 		}
 
-	return NULL;
+	return job_p;
 }
 
 

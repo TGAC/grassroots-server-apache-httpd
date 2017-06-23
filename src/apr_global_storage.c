@@ -296,8 +296,18 @@ static apr_status_t IterateOverSOCache (ap_socache_instance_t *instance,
 
 					FreeCopiedString (copied_data_s);
 				}
+			else
+				{
+					PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to copy data \"%s\"", (char *) data);
+					ret = APR_EGENERAL;
+				}
 
 			FreeCopiedString (copied_id_s);
+		}
+	else
+		{
+			PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to copy id \"%s\"", (char *) id);
+			ret = APR_EGENERAL;
 		}
 
 	return ret;
@@ -619,11 +629,16 @@ static void *FindObjectFromAPRGlobalStorage (APRGlobalStorage *storage_p, const 
 										}
 									else
 										{
-											PrintErrors (STM_LEVEL_SEVERE,  __FILE__, __LINE__,"status %d key %s result_p %0.16X remove_flag %d", status, key_s, temp_p, remove_flag);
+											PrintErrors (STM_LEVEL_SEVERE,  __FILE__, __LINE__,"Failed to allocate temporary memory when looking up key \"%s\"", key_s);
 											FreeMemory (temp_p);
 										}
 
 								}		/* if (temp_p) */
+							else
+								{
+									PrintErrors (STM_LEVEL_SEVERE,  __FILE__, __LINE__,"status %d key %s result_p %0.16X remove_flag %d", status, key_s, temp_p, remove_flag);
+									FreeMemory (temp_p);
+								}
 
 						}		/* if (GetLargestEntrySize (storage_p, &array_size)) */
 					else
