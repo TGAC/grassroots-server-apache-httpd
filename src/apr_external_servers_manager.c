@@ -118,7 +118,7 @@ APRServersManager *InitAPRServersManager (server_rec *server_p, apr_pool_t *pool
 					                    GetExternalServerFromAprServersManager,
 					                    RemoveExternalServerFromAprServersManager,
 					                    GetAllExternalServersFromAprServersManager,
-					                    DestroyAPRServersManager);
+					                    NULL);
 
 					apr_pool_cleanup_register (pool_p, manager_p, CleanUpAPRServersManager, apr_pool_cleanup_null);
 

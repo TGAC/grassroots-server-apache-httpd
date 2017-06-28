@@ -45,6 +45,7 @@
 #include "apache_output_stream.h"
 #include "util_mutex.h"
 #include "async_task.h"
+#include "grassroots_config.h"
 
 #include "mod_grassroots_config.h"
 #include "apr_jobs_manager.h"
@@ -232,15 +233,21 @@ static void GrassrootsChildInit (apr_pool_t *pool_p, server_rec *server_p)
 	 * to the global mutex and the shared segment. We also
 	 * have to find out the base address of the segment, in case
 	 * it moved to a new address. */
-	if (APRJobsManagerChildInit (pool_p, server_p))
+	if (InitInformationSystem ())
 		{
-			if (APRServersManagerChildInit (pool_p, server_p))
+			apr_pool_cleanup_register (pool_p, NULL, CloseInformationSystem, apr_pool_cleanup_null);
+
+			/*
+			 * If we don't have a Grassroots-supplied jobs manager, use an Apache one.
+			 */
+			if ((GetJobsManager () != NULL) || (APRJobsManagerChildInit (pool_p, server_p)))
 				{
-					if (InitInformationSystem ())
+					/*
+					 * If we don't have a Grassroots-supplied servers manager, use an Apache one.
+					 */
+					if ((GetServersManager () != NULL) || (APRServersManagerChildInit (pool_p, server_p)))
 						{
 							OutputStream *log_p = AllocateApacheOutputStream (server_p);
-
-							apr_pool_cleanup_register (pool_p, NULL, CloseInformationSystem, apr_pool_cleanup_null);
 
 							if (log_p)
 								{
@@ -257,6 +264,9 @@ static void GrassrootsChildInit (apr_pool_t *pool_p, server_rec *server_p)
 
 											/* Do any clean up required by the running of asynchronous tasks */
 											apr_pool_cleanup_register (pool_p, NULL, CleanUpTasks, apr_pool_cleanup_null);
+
+
+											ConnectToExternalServers ();
 										}
 									else
 										{
@@ -269,23 +279,22 @@ static void GrassrootsChildInit (apr_pool_t *pool_p, server_rec *server_p)
 									ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL , server_p, "AllocateApacheOutputStream for log failed");
 								}
 
-
-						}		/* If (InitInformationSystem ()) */
+						}		/* if (APRServersManagerChildInit (pool_p, server_p)) */
 					else
 						{
-							ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL , server_p, "InitInformationSystem failed");
+							ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL , server_p, "APRServersManagerChildInit failed");
 						}
 
-				}		/* if (APRServersManagerChildInit (pool_p, server_p)) */
+				}		/* if (APRJobsManagerChildInit (pool_p, server_p)) */
 			else
 				{
-					ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL , server_p, "APRServersManagerChildInit failed");
+					ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, server_p, "APRJobsManagerChildInit failed");
 				}
 
-		}		/* if (APRJobsManagerChildInit (pool_p, server_p)) */
+		}		/* If (InitInformationSystem ()) */
 	else
 		{
-			ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, server_p, "APRJobsManagerChildInit failed");
+			ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL , server_p, "InitInformationSystem failed");
 		}
 
 }
