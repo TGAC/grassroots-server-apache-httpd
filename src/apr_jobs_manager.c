@@ -192,12 +192,13 @@ static bool AddServiceJobToAPRJobsManager (JobsManager *jobs_manager_p, uuid_t j
 	if (service_p)
 		{
 			json_t *job_json_p = NULL;
+			bool omit_results_flag = true;
 
 			ConvertUUIDToString (job_key, uuid_s);
 
 			if (DoesServiceHaveCustomServiceJobSerialisation (service_p))
 				{
-					job_json_p = CreateSerialisedJSONForServiceJobFromService (service_p, job_p);
+					job_json_p = CreateSerialisedJSONForServiceJobFromService (service_p, job_p, omit_results_flag);
 
 					if (!job_json_p)
 						{
@@ -207,7 +208,7 @@ static bool AddServiceJobToAPRJobsManager (JobsManager *jobs_manager_p, uuid_t j
 			else
 				{
 					/* We store the c-style string for the ServiceJob's json */
-					job_json_p = GetServiceJobAsJSON (job_p);
+					job_json_p = GetServiceJobAsJSON (job_p, omit_results_flag);
 
 					if (!job_json_p)
 						{
