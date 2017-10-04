@@ -1,4 +1,4 @@
-# Apache httpd module
+# Apache httpd module {#apache_server}
 
 This module allows the Grassroots infrastructure to be used with an [Apache httpd](http://httpd.apache.org) web server. This means that the Grassroots infrastructure can take advantage of all of the functionality that httpd provides.
 
@@ -12,15 +12,21 @@ The files to build the Grassroots module are in the ```build/<platform>``` direc
 
 If you enter this directory 
 
-```cd build/linux```
+```
+cd build/linux
+```
 
 you can then build the service by typing
 
-```make all```
+```
+make all
+```
 
 and then 
 
-```make install```
+```
+make install
+```
 
 to install the module into the appropriate httpd installation allowing the Grassroots system to be used in conjunction with it.
 
