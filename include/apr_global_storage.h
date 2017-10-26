@@ -111,9 +111,26 @@ typedef struct APRGlobalStorage
 	void (*ags_free_key_and_value_fn) (unsigned char *key_p, void *value_p);
 
 
+	/**
+	 * The callback function used to compress data prior to it being stored in this APRGlobalStorage
+	 *
+	 * @param src_s  The data to compress.
+	 * @param src_length The length of the source data.
+	 * @param dest_length_p Upon success, the length of the destination buffer will be stored at the address that this points to.
+	 * @param key_s The key to use to for debugging purposes.
+	 * @return The compressed data or <code>NULL</code> upon error.
+	 */
 	unsigned char *(*ags_compress_fn) (unsigned char *src_s, unsigned int src_length, unsigned int *dest_length_p, const char * const key_s);
 
-
+	/**
+	 * The callback function used to decompress data after it has been retrieved from this APRGlobalStorage
+	 *
+	 * @param src_s  The data to decompress.
+	 * @param src_length The length of the source data.
+	 * @param dest_length_p Upon success, the length of the destination buffer will be stored at the address that this points to.
+	 * @param key_s The key to use to for debugging purposes.
+	 * @return The decompressed data or <code>NULL</code> upon error.
+	 */
 	unsigned char *(*ags_decompress_fn) (unsigned char *src_s, unsigned int src_length, unsigned int *dest_length_p, const char * const key_s);
 
 
@@ -140,6 +157,10 @@ extern "C"
  * @param mutex_filename_s The filename used to store the mutex variable governing access to the APRGlobalStorage.
  * @param cache_id_s The id used to identify this APRGlobalStorage.
  * @param provider_name_s The name of the shared object cache provider to use.
+ * @param compress_fn The callback function to use for compressing data in the given APRGlobalStorage. This can be
+ * <code>NULL</code> in which case the data will be stored uncompressed.
+ * @param decompress_fn The callback function to use for decompressing data in the given APRGlobalStorage. This can be
+ * <code>NULL</code> in which case the data will be retrieved as is.
  * @return <code>true</code> if the initialisation was successful or <code>false</code> if there was a problem.
  * @memberof APRGlobalStorage
  */
@@ -160,6 +181,10 @@ bool InitAPRGlobalStorage (APRGlobalStorage *storage_p, apr_pool_t *pool_p, apr_
  * @param mutex_filename_s The filename used to store the mutex variable governing access to the APRGlobalStorage.
  * @param cache_id_s The id used to identify this APRGlobalStorage.
  * @param provider_name_s The name of the shared object cache provider to use.
+ * @param compress_fn The callback function to use for compressing data in the given APRGlobalStorage. This can be
+ * <code>NULL</code> in which case the data will be stored uncompressed.
+ * @param decompress_fn The callback function to use for decompressing data in the given APRGlobalStorage. This can be
+ * <code>NULL</code> in which case the data will be retrieved as is.
  * @return The newly-allocated APRGlobalStorage or <code>NULL</code> upon error.
  * @see InitAPRGlobalStorage.
  * @see FreeAPRGlobalStorage.
