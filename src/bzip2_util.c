@@ -157,6 +157,7 @@ unsigned char *UncompressFromBZ2 (unsigned char *src_p, unsigned int src_length,
 
 	if (dest_p)
 		{
+			int res;
 			const int small = 0;
 			const int verbosity = 4;
 
@@ -169,7 +170,7 @@ unsigned char *UncompressFromBZ2 (unsigned char *src_p, unsigned int src_length,
 			#endif
 
 
-			int res = BZ2_bzBuffToBuffDecompress (dest_p, &uncompressed_length, (char *) src_p, src_length, small, verbosity);
+			res = BZ2_bzBuffToBuffDecompress (dest_p, &uncompressed_length, (char *) src_p, src_length, small, verbosity);
 
 			if (res == BZ_OK)
 				{
@@ -236,10 +237,11 @@ static bool SaveBZ2Data (const char *data_p, const unsigned int data_length, con
 {
 	bool success_flag = false;
 	char buffer_s [4];
+	char *filename_s = NULL;
 
 	snprintf (buffer_s, 3, "%d", s_index ++);
 
-	char *filename_s = ConcatenateVarargsStrings (key_s, "-", buffer_s, NULL);
+	filename_s = ConcatenateVarargsStrings (key_s, "-", buffer_s, NULL);
 
 	if (filename_s)
 		{
