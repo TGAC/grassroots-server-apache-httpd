@@ -130,8 +130,8 @@ json_t *GetRequestBodyAsJSON (request_rec *req_p)
 					const char *data_s = GetByteBufferData (buffer_p);
 					params_p = json_loads (data_s, 0, &err);
 					
-					#if KEY_VALUE_PAIR_DEBUG >= STM_LEVEL_FINE
-					PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "Request Body:\\n%s\\n", data_s);
+					#if KEY_VALUE_PAIR_DEBUG >= STM_LEVEL_FINER
+					PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "Request Body:\\n%s\\n", data_s);
 					#endif
 
 					if (!params_p)
