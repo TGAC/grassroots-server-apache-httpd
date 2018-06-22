@@ -100,7 +100,7 @@ bool InitAPRGlobalStorage (APRGlobalStorage *storage_p, apr_pool_t *pool_p, apr_
 
 					if (current_dir_s)
 						{
-							storage_p -> ags_largest_entry_memory_id = AllocateSharedMemory (current_dir_s, sizeof (unsigned int), 0644);
+							storage_p -> ags_largest_entry_memory_id = AllocateSharedMemory (current_dir_s, sizeof (unsigned int), 0666);
 
 							FreeCopiedString (current_dir_s);
 
