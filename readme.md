@@ -1,4 +1,4 @@
-# Apache httpd module {#apache_server}
+# Apache httpd module {#apache_server_guide}
 
 This module allows the Grassroots infrastructure to be used with an [Apache httpd](http://httpd.apache.org) web server. This means that the Grassroots infrastructure can take advantage of all of the functionality that httpd provides.
 
