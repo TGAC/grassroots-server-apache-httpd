@@ -455,13 +455,13 @@ static int ReadRequestBody (request_rec *req_p, ByteBuffer *buffer_p)
 	    if (ap_should_client_block (req_p))
 	    	{
 	        /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-	        char         temp_s [HUGE_STRING_LEN];
+	        char         temp_s [HUGE_STRING_LEN] = { 0 };
 	        apr_off_t    rsize, len_read, rpos = 0;
 	        apr_off_t length = req_p->remaining;
 	        /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 	        const char *buffer_s = (const char *) apr_pcalloc (req_p -> pool, (apr_size_t) (length + 1));
 
-	        while (((len_read = ap_get_client_block (req_p, temp_s, sizeof(temp_s))) > 0) && (ret == OK))
+	        while (((len_read = ap_get_client_block (req_p, temp_s, HUGE_STRING_LEN)) > 0) && (ret == OK))
 	        	{
 	            if((rpos + len_read) > length)
 	            	{
