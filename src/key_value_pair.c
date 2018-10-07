@@ -14,6 +14,8 @@
 ** limitations under the License.
 */
 /* Include the required headers from httpd */
+#include "key_value_pair.h"
+
 #include "httpd.h"
 #include "http_core.h"
 #include "http_protocol.h"
@@ -27,7 +29,6 @@
 #include "util_script.h"
 
 
-#include "key_value_pair.h"
 #include "typedefs.h"
 //#include "byte_buffer.h"
 #include "streams.h"

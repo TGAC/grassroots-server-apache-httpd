@@ -20,10 +20,11 @@
  *      Author: tyrrells
  */
 
+#include "apr_global_storage.h"
+
 #include "memory_allocations.h"
 #include "apr_thread_mutex.h"
 #include "typedefs.h"
-#include "apr_global_storage.h"
 #include "streams.h"
 #include "string_utils.h"
 #include "util_mutex.h"

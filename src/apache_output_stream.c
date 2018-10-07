@@ -13,12 +13,13 @@
 ** See the License for the specific language governing permissions and
 ** limitations under the License.
 */
+#include "apache_output_stream.h"
+
 #include "httpd.h"
 #include "http_log.h"
 
 #include "apr_strings.h"
 
-#include "apache_output_stream.h"
 #include "memory_allocations.h"
 
 

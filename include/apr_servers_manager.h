@@ -28,10 +28,10 @@
 #ifndef APR_SERVERS_MANAGER_H_
 #define APR_SERVERS_MANAGER_H_
 
+#include "apr_global_storage.h"
+#include "mod_grassroots_config.h"
 #include "httpd.h"
 
-#include "mod_grassroots_config.h"
-#include "apr_global_storage.h"
 
 /*
  * The following preprocessor macros allow us to declare

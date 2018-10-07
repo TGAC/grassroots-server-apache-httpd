@@ -34,6 +34,8 @@
 #include "ap_provider.h"
 #include "ap_socache.h"
 
+#include "typedefs.h"
+
 /**
  * @brief A datatype to manage all of the ServiceJobs on a Grassroots system running on Apache httpd.
  *

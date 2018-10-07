@@ -16,6 +16,11 @@
 /* Include the required headers from httpd */
 #include <unistd.h>
 
+#include "apache_output_stream.h"
+#include "apr_jobs_manager.h"
+#include "apr_servers_manager.h"
+#include "key_value_pair.h"
+#include "mod_grassroots_config.h"
 #include "httpd.h"
 #include "http_core.h"
 #include "http_protocol.h"
@@ -36,20 +41,15 @@
 #include "util_script.h"
 
 
-#include "key_value_pair.h"
 #include "server.h"
 #include "jansson.h"
 #include "service_config.h"
 #include "system_util.h"
 #include "streams.h"
-#include "apache_output_stream.h"
 #include "util_mutex.h"
 #include "async_task.h"
 #include "grassroots_config.h"
 
-#include "mod_grassroots_config.h"
-#include "apr_jobs_manager.h"
-#include "apr_servers_manager.h"
 
 #ifdef _DEBUG
 	#define MOD_GRASSROOTS_DEBUG	(STM_LEVEL_FINE)

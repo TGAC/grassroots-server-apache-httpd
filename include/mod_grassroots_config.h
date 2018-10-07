@@ -28,6 +28,7 @@
 #ifndef MOD_GRASSROOTS_CONFIG_H_
 #define MOD_GRASSROOTS_CONFIG_H_
 
+#include "apr_global_storage.h"
 #include "httpd.h"
 #include "http_config.h"
 #include "apr_global_mutex.h"
@@ -36,7 +37,6 @@
 
 #include "jobs_manager.h"
 #include "servers_pool.h"
-#include "apr_global_storage.h"
 #include "string_utils.h"
 
 

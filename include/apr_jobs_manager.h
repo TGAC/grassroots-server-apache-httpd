@@ -28,10 +28,10 @@
 #ifndef APR_JOBS_MANAGER_H_
 #define APR_JOBS_MANAGER_H_
 
+#include "apr_global_storage.h"
+#include "mod_grassroots_config.h"
 #include "httpd.h"
 
-#include "mod_grassroots_config.h"
-#include "apr_global_storage.h"
 
 
 

@@ -5,13 +5,14 @@
  *      Author: billy
  */
 
+#include "bzip2_util.h"
+
 #include <ctype.h>
 #include <string.h>
 #include <stdio.h>
 
 #include "bzlib.h"
 
-#include "bzip2_util.h"
 #include "memory_allocations.h"
 #include "streams.h"
 #include "string_utils.h"

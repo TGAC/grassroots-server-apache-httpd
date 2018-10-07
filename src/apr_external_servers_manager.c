@@ -22,11 +22,11 @@
 
 #include <limits.h>
 
+#include "mod_grassroots_config.h"
 #include "apr_hash.h"
 
 #include "servers_pool.h"
 
-#include "mod_grassroots_config.h"
 #include "string_utils.h"
 #include "memory_allocations.h"
 #include "util_mutex.h"
