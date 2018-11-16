@@ -12,24 +12,20 @@ include $(DIR_BUILD_CONFIG)/project.properties
 -include $(DIR_BUILD)/apache_server_module.properties
 
 ifeq ($(DIR_APACHE),)
-HTTPD := $(shell httpd -V) 
-APXS := $(shell apxs)
-DIR_APACHE := $(filter HTTPD_ROOT=%, $(HTTPD))
+DIR_APACHE_MODULES := /usr/lib/apache2/modules
+DIR_APACHE_INC := 
+DIR_APACHE_CONF = /etc/apache2/mods-enabled
+APACHE_SET = true
+APXS = apxs
+MODULE_LOAD_FILE := ../../conf/load_grassroots_for_packaged_apache.conf
+else
+MODULE_LOAD_FILE := ../../conf/load_grassroots_for_compiled_apache.conf
 endif
 
-ifneq ($(DIR_APACHE),)
-DIR_APACHE:=$(subst HTTPD_ROOT=,,$(DIR_APACHE))
-DIR_APACHE_MODULES := $(DIR_APACHE)/modules
-DIR_APACHE_INC := $(DIR_APACHE)/include
-DIR_APACHE_CONF_EXTRA = $(DIR_APACHE)/conf/extra
-APACHE_SET = true
 
 ifeq ($(APXS),)
 APXS = $(DIR_APACHE)/bin/apxs
 endif
-
-endif
-
 
 ifeq ($(DIR_ROOT),)
 export DIR_ROOT = $(realpath $(../../..))
@@ -47,12 +43,21 @@ else
 endif
 
 
+ESCAPED_DIR_GRASSROOTS_INSTALL := $(shell echo "$(DIR_GRASSROOTS_INSTALL)" | sed 's/\//\\\//g')
+ESCAPED_DIR_GRASSROOTS_EXTRAS := $(shell echo "$(DIR_GRASSROOTS_EXTRAS)" | sed 's/\//\\\//g')
+
+
 VPATH	:= \
 	$(DIR_SRC) \
 	$(DIR_GRASSROOTS_SERVER_SRC) 	
 
-INCLUDES := \
-	-I$(DIR_APACHE_INC) \
+
+ifneq ($(DIR_APACHE_INC),)
+INCLUDES = -I$(DIR_APACHE_INC)
+endif
+
+
+INCLUDES += \
 	-I$(DIR_INCLUDE) \
 	-I$(DIR_GRASSROOTS_SERVER_INC) \
 	-I$(DIR_GRASSROOTS_UTIL_INC) \
@@ -104,28 +109,44 @@ $(DIR_OBJS)/%.o : %.c
 		sed -e 's/^ *//' -e 's/$$/:/' >> $(basename $@).d
 	@rm -f $(basename $@).d.tmp   	
 
-.PHONY:	all
+.PHONY:	all env conf
 
-all:
+
+env:
+	@echo "v $(v)" 
 	@echo "HTTPD $(HTTPD)" 
 	@echo "APACHE SET $(APACHE_SET)"
-	@echo "APACHE_HOME  - $$APACHE_HOME -"
-	@echo "IRODS_HOME $$IRODS_HOME -"
-	@echo "DIR_APACHE _ $(DIR_APACHE) _"
-	@echo "APACHE_HOME  - $$APACHE_HOME -"
-	@echo "DIR_APACHE_MODULES  $(DIR_APACHE_MODULES)"
-	@echo "GRASSROOTS_INSTANCE -$(GRASSROOTS_INSTANCE)-"
+	@echo "DIR_APACHE _$(DIR_APACHE) _"
+	@echo "APACHE_HOME  _$$APACHE_HOME_"
+	@echo "DIR_APACHE_MODULES _$(DIR_APACHE_MODULES)_"
+	@echo "DIR_APACHE_CONF _$(DIR_APACHE_CONF)_"
 	@echo "APXS $(APXS)"
 	@echo "USE_COMPRESSION $(USE_COMPRESSION)"
+
+all:
 	$(APXS) -n $(NAME) $(INCLUDES) -D UNIX=1 -D BUILD=$(BUILD) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -c $(SRCS)
 		
 clean:
 	@rm -fr src/*.o src/*.lo src/*.slo src/*.la
 		
-install: all
-
+install: all conf envvars
 	@echo "Installing mod_$(NAME).so to $(DIR_APACHE_MODULES)"
 	$(SUDO) cp $(DIR_SRC)/.libs/mod_$(NAME).so $(DIR_APACHE_MODULES)
 	#if [ -d $(DIR_APACHE)/conf/conf.d ]; then $(DIR_APACHE_CONF)=$(DIR_APACHE)/conf/conf.d; fi
-	#$(SUDO) cp conf/extra/httpd-grassroots.conf $(DIR_APACHE_CONF)
-	#$(SUDO) sed -i 's/DIR_GRASSROOTS_INSTALL/$(subst /,\/,$(DIR_GRASSROOTS_INSTALL))/g' $(DIR_APACHE_CONF)/httpd-grassroots.conf		
+	$(SUDO) cp ../../conf/grassroots.conf $(DIR_APACHE_CONF)	
+
+conf:
+	if [ ! -e ../../conf/grassroots.conf ]; then \
+		cat $(MODULE_LOAD_FILE) > ../../conf/grassroots.conf; \
+		cat ../../conf/httpd-grassroots.conf >> ../../conf/grassroots.conf; \
+		sed -i "s/DIR_GRASSROOTS_INSTALL/$(ESCAPED_DIR_GRASSROOTS_INSTALL)/g" ../../conf/grassroots.conf; \
+	fi
+	
+
+envvars:
+	cp ../../conf/envvars ../../conf/envvars_new
+	sed -i "s/DIR_GRASSROOTS_EXTRAS/$(ESCAPED_DIR_GRASSROOTS_EXTRAS)/g" ../../conf/envvars_new
+	sed -i "s/DIR_GRASSROOTS/$(ESCAPED_DIR_GRASSROOTS_INSTALL)/g" ../../conf/envvars_new
+	$(SUDO) cp ../../conf/envvars_new /etc/apache2/envvars_grassroots
+	$(SUDO) sed -i -e '$$a\' -e '\n. /etc/apache2/envvars_grassroots\n' /etc/apache2/envvars
+
