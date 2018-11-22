@@ -15,17 +15,19 @@ ifeq ($(DIR_APACHE),)
 DIR_APACHE_MODULES := /usr/lib/apache2/modules
 DIR_APACHE_INC := 
 DIR_APACHE_CONF = /etc/apache2/mods-enabled
+DIR_APACHE_ENVVARS := /etc/apache2/
 APACHE_SET = true
 APXS = apxs
 MODULE_LOAD_FILE := ../../conf/load_grassroots_for_packaged_apache.conf
 else
+DIR_APACHE_MODULES := $(DIR_APACHE)/modules
+DIR_APACHE_INC := $(DIR_APACHE)/include
+DIR_APACHE_CONF = $(DIR_APACHE)/conf/extra
+DIR_APACHE_ENVVARS := $(DIR_APACHE)/bin
 MODULE_LOAD_FILE := ../../conf/load_grassroots_for_compiled_apache.conf
-endif
-
-
-ifeq ($(APXS),)
 APXS = $(DIR_APACHE)/bin/apxs
 endif
+
 
 ifeq ($(DIR_ROOT),)
 export DIR_ROOT = $(realpath $(../../..))
@@ -133,7 +135,9 @@ install: all conf envvars
 	@echo "Installing mod_$(NAME).so to $(DIR_APACHE_MODULES)"
 	$(SUDO) cp $(DIR_SRC)/.libs/mod_$(NAME).so $(DIR_APACHE_MODULES)
 	#if [ -d $(DIR_APACHE)/conf/conf.d ]; then $(DIR_APACHE_CONF)=$(DIR_APACHE)/conf/conf.d; fi
-	$(SUDO) cp ../../conf/grassroots.conf $(DIR_APACHE_CONF)	
+	if [ ! -e $(DIR_APACHE_CONF)/grassroots.conf ]; then \
+		$(SUDO) cp ../../conf/grassroots.conf $(DIR_APACHE_CONF); \
+	fi
 
 conf:
 	if [ ! -e ../../conf/grassroots.conf ]; then \
@@ -144,9 +148,11 @@ conf:
 	
 
 envvars:
-	cp ../../conf/envvars ../../conf/envvars_new
-	sed -i "s/DIR_GRASSROOTS_EXTRAS/$(ESCAPED_DIR_GRASSROOTS_EXTRAS)/g" ../../conf/envvars_new
-	sed -i "s/DIR_GRASSROOTS/$(ESCAPED_DIR_GRASSROOTS_INSTALL)/g" ../../conf/envvars_new
-	$(SUDO) cp ../../conf/envvars_new /etc/apache2/envvars_grassroots
-	$(SUDO) sed -i -e '$$a\' -e '\n. /etc/apache2/envvars_grassroots\n' /etc/apache2/envvars
+	if [ ! -e  $(DIR_APACHE_ENVVARS)/envvars_grassroots ]; then \
+		cp ../../conf/envvars ../../conf/envvars_new; \
+		sed -i "s/DIR_GRASSROOTS_EXTRAS/$(ESCAPED_DIR_GRASSROOTS_EXTRAS)/g" ../../conf/envvars_new; \
+		sed -i "s/DIR_GRASSROOTS/$(ESCAPED_DIR_GRASSROOTS_INSTALL)/g" ../../conf/envvars_new; \
+		$(SUDO) cp ../../conf/envvars_new $(DIR_APACHE_ENVVARS)/envvars_grassroots; \
+		$(SUDO) sed -i -e '$$a\' -e '\n. /etc/apache2/envvars_grassroots\n' $(DIR_APACHE_ENVVARS)/envvars; \
+	fi
 
