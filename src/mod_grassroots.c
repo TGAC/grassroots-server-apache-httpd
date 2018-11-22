@@ -359,7 +359,7 @@ static int GrassrootsPostConfig (apr_pool_t *config_pool_p, apr_pool_t *log_p, a
 
 									PostConfigAPRServersManager (s_servers_manager_p, pool_p, server_p, config_p -> wisc_provider_name_s);
 
-									PoolDebug (config_pool_p, log_p, temp_p, server_p);
+									//PoolDebug (config_pool_p, log_p, temp_p, server_p);
 
 									ret = OK;
 								}

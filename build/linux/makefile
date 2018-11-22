@@ -153,6 +153,6 @@ envvars:
 		sed -i "s/DIR_GRASSROOTS_EXTRAS/$(ESCAPED_DIR_GRASSROOTS_EXTRAS)/g" ../../conf/envvars_new; \
 		sed -i "s/DIR_GRASSROOTS/$(ESCAPED_DIR_GRASSROOTS_INSTALL)/g" ../../conf/envvars_new; \
 		$(SUDO) cp ../../conf/envvars_new $(DIR_APACHE_ENVVARS)/envvars_grassroots; \
-		$(SUDO) sed -i -e '$$a\' -e '\n. /etc/apache2/envvars_grassroots\n' $(DIR_APACHE_ENVVARS)/envvars; \
+		$(SUDO) sed -i -e '$$a\' -e '\n. $(DIR_APACHE_ENVVARS)/envvars_grassroots\n' $(DIR_APACHE_ENVVARS)/envvars; \
 	fi
 
