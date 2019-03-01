@@ -14,6 +14,10 @@
 ** limitations under the License.
 */
 /* Include the required headers from httpd */
+
+#include <string.h>
+
+
 #include "key_value_pair.h"
 
 #include "httpd.h"
@@ -47,7 +51,7 @@ typedef struct JsonRequest
 	json_t *jr_json_p;
 	request_rec *jr_req_p;
 } JsonRequest;
-
+if (SetJSONString (json_req_p, SERVICE_NAME_S, service_name_s))
 
 /**********************************/
 /******** STATIC PROTOTYPES *******/
@@ -81,39 +85,6 @@ static int ReadRequestBody (request_rec *req_p, ByteBuffer *buffer_p);
 /**********************************/
 /********** API METHODS ***********/
 /**********************************/
-
-
-json_t *GetAllRequestDataAsJSON (request_rec *req_p)
-{
-	json_t *get_params_p = NULL; // ConvertGetParametersToJSON (req_p);
-	json_t *body_params_p = GetRequestBodyAsJSON (req_p);
-	json_t *res_p = NULL;
-
-	if (get_params_p)
-		{
-			if (body_params_p)
-				{
-					int i = json_object_update (get_params_p, body_params_p);
-
-					if (i != 0)
-						{
-							PrintJSONToErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, body_params_p, "Failed to add body ");
-						}
-
-					json_decref (body_params_p);
-				}
-
-			res_p = get_params_p;
-		}
-	else
-		{
-			res_p = body_params_p;
-		}
-
-	return res_p;
-}
-
-
 
 
 json_t *GetRequestBodyAsJSON (request_rec *req_p)
@@ -158,9 +129,83 @@ json_t *GetRequestBodyAsJSON (request_rec *req_p)
 }
 
 
+json_t *GetRequestParamsAsJSON (request_rec *req_p)
+{
+	apr_table_t *params_table_p = NULL;
+	json_t *json_req_p = NULL;
+
+	char *path_s = req_p -> parsed_uri -> path;
+
+
+	/*
+	 * The first level is the service name
+	 */
+	if (path_s)
+		{
+			const char *SERVICE_S = "service/";
+			size_t l = strlen (SERVICE_S);
+
+			if (strncmp (path_s, SERVICE_S, l) == 0)
+				{
+					json_req_p = json_object ();
+
+					if (json_req_p)
+						{
+							const char *service_name_s = path_s + l;
+
+							if (SetJSONString (json_req_p, SERVICE_NAME_S, service_name_s))
+								{
+									if (SetJSONBoolean (json_req_p, SERVICE_RUN_S, true))
+										{
+
+										}		/* if (SetJSONBoolean (json_req_p, SERVICE_RUN_S, true)) */
+
+								}		/* if (SetJSONString (json_req_p, SERVICE_NAME_S, service_name_s)) */
+
+						}		/* if (json_req_p) */
+
+				}		/* if (strncmp (path_s, SERVICE_S, l) == 0) */
+		}
+
+
+			/*
+			 * Then get all of the params
+			 */
+			ap_args_to_table (req_p, &params_table_p);
+
+			int res = apr_table_do (AddParamsToJSON, params_p, params_table_p, NULL);
+
+			if (res != TRUE)
+				{
+					json_decref (params_p);
+					params_p = NULL;
+				}
+
+		}		/* if (params_p) */
+
+
+	return params_p;
+}
+
+
+
 /**********************************/
 /********* STATIC METHODS *********/
 /**********************************/
+
+
+static int AddParamsToJSON (void *rec_p, const char *key_s, const char *value_s)
+{
+	int res = 0;
+	json_t *params_p = (json_t *) rec_p;
+
+	if (SetJSONString (params_p, key_s, value_s))
+		{
+			res = 1;
+		}
+
+	return res;
+}
 
 
 #if AP_SERVER_MAJORVERSION_NUMBER >= 2

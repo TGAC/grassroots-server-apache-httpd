@@ -469,7 +469,23 @@ static int GrassrootsHandler (request_rec *req_p)
    */
   if ((req_p -> handler) && (strcmp (req_p -> handler, "grassroots-handler") == 0))
   	{
-  		if ((req_p -> method_number == M_GET) || (req_p -> method_number == M_POST))
+  		json_t *json_req_p = NULL;
+
+  		switch (req_p -> method_number)
+				{
+  				case M_POST:
+  					json_req_p = GetRequestBodyAsJSON (req_p);
+  					break;
+
+  				case M_GET:
+  					json_req_p = GetRequestParamsAsJSON (req_p);
+  					break;
+
+  				default:
+  					break;
+				}
+
+  		if (json_req_p)
   			{
   				/* Get the posted json data */
 						json_t *json_req_p = GetAllRequestDataAsJSON (req_p);

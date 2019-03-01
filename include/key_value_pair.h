@@ -39,21 +39,6 @@ extern "C"
 {
 #endif
 
-/**
- * @brief Get all of the data sent in a request.
- *
- * This will combine any parameters sent in the body
- * and those sent in the headers.
- *
- * @param req_p The request to get all of the data for.
- * @see GetGetRequestParameters
- * @see GetRequestBodyAsJSON
- * @return The json representation of the request parameters
- * or <code>NULL</code> upon error.
- *
- * @ingroup httpd_server
- */
-json_t *GetAllRequestDataAsJSON (request_rec *req_p);
 
 
 /**
@@ -65,7 +50,7 @@ json_t *GetAllRequestDataAsJSON (request_rec *req_p);
  *
  * @ingroup httpd_server
  */
-json_t *GetGetRequestParameters (request_rec *req_p);
+json_t *GetRequestParamsAsJSON (request_rec *req_p);
 
 
 /**
