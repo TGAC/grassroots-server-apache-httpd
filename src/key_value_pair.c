@@ -51,7 +51,7 @@ typedef struct JsonRequest
 	json_t *jr_json_p;
 	request_rec *jr_req_p;
 } JsonRequest;
-if (SetJSONString (json_req_p, SERVICE_NAME_S, service_name_s))
+
 
 /**********************************/
 /******** STATIC PROTOTYPES *******/
@@ -80,6 +80,8 @@ static bool AddJsonChild (json_t *parent_p, const char *key_s, const char *value
 
 
 static int ReadRequestBody (request_rec *req_p, ByteBuffer *buffer_p);
+
+static int AddParamsToJSON (void *rec_p, const char *key_s, const char *value_s);
 
 
 /**********************************/
@@ -134,7 +136,7 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p)
 	apr_table_t *params_table_p = NULL;
 	json_t *json_req_p = NULL;
 
-	char *path_s = req_p -> parsed_uri -> path;
+	const char *path_s = req_p -> path_info;
 
 
 	/*
@@ -142,7 +144,7 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p)
 	 */
 	if (path_s)
 		{
-			const char *SERVICE_S = "service/";
+			const char *SERVICE_S = "/service/";
 			size_t l = strlen (SERVICE_S);
 
 			if (strncmp (path_s, SERVICE_S, l) == 0)
@@ -157,34 +159,65 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p)
 								{
 									if (SetJSONBoolean (json_req_p, SERVICE_RUN_S, true))
 										{
+											json_t *parameter_set_json_p = json_object ();
+
+											if (parameter_set_json_p)
+												{
+													if (json_object_set_new (json_req_p, PARAM_SET_KEY_S, parameter_set_json_p) == 0)
+														{
+															json_t *params_json_p = json_object ();
+
+															if (params_json_p)
+																{
+																	if (json_object_set_new (parameter_set_json_p, PARAM_SET_PARAMS_S, params_json_p) == 0)
+																		{
+																			/*
+																			 * Then get all of the params
+																			 */
+																			ap_args_to_table (req_p, &params_table_p);
+
+																			int res = apr_table_do (AddParamsToJSON, params_json_p, params_table_p, NULL);
+
+																			if (res == TRUE)
+																				{
+																					json_t *array_p = json_array ();
+
+																					if (array_p)
+																						{
+																							if (json_array_append_new (array_p, json_req_p) == 0)
+																								{
+																									return array_p;
+																								}
+																							else
+																								{
+																									json_decref (array_p);
+																								}
+																						}
+																				}
+																		}
+																	else
+																		{
+																			json_decref (params_json_p);
+																		}
+																}
+														}
+													else
+														{
+															json_decref (parameter_set_json_p);
+														}
+												}
 
 										}		/* if (SetJSONBoolean (json_req_p, SERVICE_RUN_S, true)) */
 
 								}		/* if (SetJSONString (json_req_p, SERVICE_NAME_S, service_name_s)) */
 
+							json_decref (json_req_p);
 						}		/* if (json_req_p) */
 
 				}		/* if (strncmp (path_s, SERVICE_S, l) == 0) */
 		}
 
-
-			/*
-			 * Then get all of the params
-			 */
-			ap_args_to_table (req_p, &params_table_p);
-
-			int res = apr_table_do (AddParamsToJSON, params_p, params_table_p, NULL);
-
-			if (res != TRUE)
-				{
-					json_decref (params_p);
-					params_p = NULL;
-				}
-
-		}		/* if (params_p) */
-
-
-	return params_p;
+	return NULL;
 }
 
 

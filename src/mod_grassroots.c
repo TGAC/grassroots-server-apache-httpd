@@ -482,66 +482,57 @@ static int GrassrootsHandler (request_rec *req_p)
   					break;
 
   				default:
+  					res = HTTP_METHOD_NOT_ALLOWED;
   					break;
 				}
 
   		if (json_req_p)
   			{
-  				/* Get the posted json data */
-						json_t *json_req_p = GetAllRequestDataAsJSON (req_p);
+					int socket_fd = -1;
+					ModGrassrootsConfig *config_p = ap_get_module_config (req_p -> per_dir_config, &grassroots_module);
+					const char *error_s = NULL;
+					json_t *res_p = ProcessServerJSONMessage (json_req_p, socket_fd, &error_s);
 
-						if (json_req_p)
-							{
-								int socket_fd = -1;
-						    ModGrassrootsConfig *config_p = ap_get_module_config (req_p -> per_dir_config, &grassroots_module);
-						    const char *error_s = NULL;
-								json_t *res_p = ProcessServerJSONMessage (json_req_p, socket_fd, &error_s);
+					if (res_p)
+						{
+							char *res_s = json_dumps (res_p, JSON_INDENT (2));
 
-								if (res_p)
-									{
-										char *res_s = json_dumps (res_p, JSON_INDENT (2));
+							if (res_s)
+								{
+									res = OK;
 
-										if (res_s)
-											{
-												res = OK;
+									ap_rputs (res_s, req_p);
 
-												ap_rputs (res_s, req_p);
+									free (res_s);
+								}		/* if (res_s) */
+							else
+								{
+									res = HTTP_INTERNAL_SERVER_ERROR;
+								}
 
-												free (res_s);
-											}		/* if (res_s) */
-										else
-											{
-												res = HTTP_INTERNAL_SERVER_ERROR;
-											}
+							#if MOD_GRASSROOTS_DEBUG >= STM_LEVEL_FINER
+							PrintJSONRefCounts (res_p, "pre decref res_p", STM_LEVEL_FINER, __FILE__, __LINE__);
+							#endif
 
-										#if MOD_GRASSROOTS_DEBUG >= STM_LEVEL_FINER
-										PrintJSONRefCounts (res_p, "pre decref res_p", STM_LEVEL_FINER, __FILE__, __LINE__);
-										#endif
+							json_decref (res_p);
 
-										json_decref (res_p);
+						}		/* if (res_p) */
+					else
+						{
+							ap_rprintf (req_p, "Error processing request: %s", error_s);
+							res = HTTP_BAD_REQUEST;
+						}
 
-									}		/* if (res_p) */
-								else
-									{
-										ap_rprintf (req_p, "Error processing request: %s", error_s);
-										res = HTTP_BAD_REQUEST;
-									}
-
-								#if MOD_GRASSROOTS_DEBUG >= STM_LEVEL_FINER
-								PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "json_req_p -> refcount %ld", json_req_p -> refcount);
-								#endif
-								json_decref (json_req_p);
-							}		/* if (json_req_p) */
-						else
-							{
-								ap_rprintf (req_p, "Error getting input data from request");
-								res = HTTP_BAD_REQUEST;
-							}
-  			}		/* if ((req_p -> method_number == M_GET) || (req_p -> method_number == M_POST)) */
-  		else
-  			{
-  				res = HTTP_METHOD_NOT_ALLOWED;
-  			}
+					#if MOD_GRASSROOTS_DEBUG >= STM_LEVEL_FINER
+					PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "json_req_p -> refcount %ld", json_req_p -> refcount);
+					#endif
+					json_decref (json_req_p);
+				}		/* if (json_req_p) */
+			else
+				{
+					ap_rprintf (req_p, "Error getting input data from request");
+					res = HTTP_BAD_REQUEST;
+				}
 
   	}		/* if ((req_p -> handler) && (strcmp (req_p -> handler, "grassroots-handler") == 0)) */
 
