@@ -37,6 +37,9 @@
 //#include "byte_buffer.h"
 #include "streams.h"
 #include "json_util.h"
+#include "operation.h"
+#include "schema_version.h"
+#include "json_tools.h"
 
 
 #ifdef _DEBUG
@@ -134,8 +137,6 @@ json_t *GetRequestBodyAsJSON (request_rec *req_p)
 json_t *GetRequestParamsAsJSON (request_rec *req_p)
 {
 	apr_table_t *params_table_p = NULL;
-	json_t *json_req_p = NULL;
-
 	const char *path_s = req_p -> path_info;
 
 
@@ -149,23 +150,23 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p)
 
 			if (strncmp (path_s, SERVICE_S, l) == 0)
 				{
-					json_req_p = json_object ();
+					json_t *service_req_p = json_object ();
 
-					if (json_req_p)
+					if (service_req_p)
 						{
 							const char *service_name_s = path_s + l;
 
-							if (SetJSONString (json_req_p, SERVICE_NAME_S, service_name_s))
+							if (SetJSONString (service_req_p, SERVICE_NAME_S, service_name_s))
 								{
-									if (SetJSONBoolean (json_req_p, SERVICE_RUN_S, true))
+									if (SetJSONBoolean (service_req_p, SERVICE_RUN_S, true))
 										{
 											json_t *parameter_set_json_p = json_object ();
 
 											if (parameter_set_json_p)
 												{
-													if (json_object_set_new (json_req_p, PARAM_SET_KEY_S, parameter_set_json_p) == 0)
+													if (json_object_set_new (service_req_p, PARAM_SET_KEY_S, parameter_set_json_p) == 0)
 														{
-															json_t *params_json_p = json_object ();
+															json_t *params_json_p = json_array ();
 
 															if (params_json_p)
 																{
@@ -180,18 +181,28 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p)
 
 																			if (res == TRUE)
 																				{
-																					json_t *array_p = json_array ();
+																					json_t *root_p = json_object ();
 
-																					if (array_p)
+																					if (root_p)
 																						{
-																							if (json_array_append_new (array_p, json_req_p) == 0)
+																							json_t *array_p = json_array ();
+
+																							if (array_p)
 																								{
-																									return array_p;
+																									if (json_object_set_new (root_p, SERVICES_NAME_S, array_p) == 0)
+																										{
+																											if (json_array_append_new (array_p, service_req_p) == 0)
+																												{
+																													return root_p;
+																												}
+																										}
+																									else
+																										{
+																											json_decref (array_p);
+																										}
 																								}
-																							else
-																								{
-																									json_decref (array_p);
-																								}
+
+																							json_decref (root_p);
 																						}
 																				}
 																		}
@@ -207,14 +218,57 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p)
 														}
 												}
 
-										}		/* if (SetJSONBoolean (json_req_p, SERVICE_RUN_S, true)) */
+										}		/* if (SetJSONBoolean (service_req_p, SERVICE_RUN_S, true)) */
 
-								}		/* if (SetJSONString (json_req_p, SERVICE_NAME_S, service_name_s)) */
+								}		/* if (SetJSONString (service_req_p, SERVICE_NAME_S, service_name_s)) */
 
-							json_decref (json_req_p);
-						}		/* if (json_req_p) */
+							json_decref (service_req_p);
+						}		/* if (service_req_p) */
 
 				}		/* if (strncmp (path_s, SERVICE_S, l) == 0) */
+			else
+				{
+					const char *OPERATION_S = "/operation/";
+					size_t l = strlen (OPERATION_S);
+
+					if (strncmp (path_s, OPERATION_S, l) == 0)
+						{
+							Operation op;
+
+							path_s += l;
+
+							op = GetOperationFromString (path_s);
+
+							if (op != OP_NONE)
+								{
+									SchemaVersion *sv_p = AllocateSchemaVersion (CURRENT_SCHEMA_VERSION_MAJOR, CURRENT_SCHEMA_VERSION_MINOR);
+
+									if (sv_p)
+										{
+											json_t *op_p = GetOperationAsJSON (op, sv_p);
+
+											if (op_p)
+												{
+													return op_p;
+												}
+											else
+												{
+													PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "GetOperationAsJSON failed for %s", GetOperationAsString (op));
+												}
+
+											FreeSchemaVersion (sv_p);
+										}
+									else
+										{
+											PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "AllocateSchemaVersion failed for %s", req_p -> path_info);
+										}
+								}
+							else
+								{
+									PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "GetOperationFromString failed for \"%s\"", path_s);
+								}
+						}
+				}
 		}
 
 	return NULL;
@@ -229,15 +283,27 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p)
 
 static int AddParamsToJSON (void *rec_p, const char *key_s, const char *value_s)
 {
-	int res = 0;
-	json_t *params_p = (json_t *) rec_p;
+	json_t *param_p = json_object ();
 
-	if (SetJSONString (params_p, key_s, value_s))
+	if (param_p)
 		{
-			res = 1;
+			if (SetJSONString (param_p, PARAM_NAME_S, key_s))
+				{
+					if (SetJSONString (param_p, PARAM_CURRENT_VALUE_S, value_s))
+						{
+							json_t *params_p = (json_t *) rec_p;
+
+							if (json_array_append_new (params_p, param_p) == 0)
+								{
+									return 1;
+								}
+						}
+				}
+
+			json_decref (param_p);
 		}
 
-	return res;
+	return 0;
 }
 
 
