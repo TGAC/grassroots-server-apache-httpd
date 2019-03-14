@@ -557,23 +557,3 @@ static apr_status_t CleanUpPool (void *data_p)
 }
 
 
-static int PoolDebug (apr_pool_t *config_pool_p, apr_pool_t *log_pool_p, apr_pool_t *temp_pool_p, server_rec *server_p)
-{
-  ap_log_error (APLOG_MARK, APLOG_NOERRNO | APLOG_DEBUG, 0, server_p, "Registering for config_pool_p [%#lx]", (unsigned long int) config_pool_p);
-	apr_pool_cleanup_register (config_pool_p, (void *) "Cleaning up config_pool_p", CleanUpPool, apr_pool_cleanup_null);
-
-  ap_log_error (APLOG_MARK, APLOG_NOERRNO | APLOG_DEBUG, 0, server_p, "Registering for log_pool_p [%#lx]", (unsigned long int) log_pool_p);
-	apr_pool_cleanup_register (log_pool_p, (void *) "Cleaning up log_pool_p", CleanUpPool, apr_pool_cleanup_null);
-
-  ap_log_error (APLOG_MARK, APLOG_NOERRNO | APLOG_DEBUG, 0, server_p, "Registering for temp_pool_p [%#lx]", (unsigned long int) temp_pool_p);
-	apr_pool_cleanup_register (temp_pool_p, (void *) "Cleaning up temp_pool_p", CleanUpPool, apr_pool_cleanup_null);
-
-  ap_log_error (APLOG_MARK, APLOG_NOERRNO | APLOG_DEBUG, 0, server_p, "Registering for server_p -> process -> pool [%#lx]", (unsigned long int) server_p -> process -> pool);
-	apr_pool_cleanup_register (server_p -> process -> pool, (void *) "Cleaning up server_p -> process -> pool", CleanUpPool, apr_pool_cleanup_null);
-
-  ap_log_error (APLOG_MARK, APLOG_NOERRNO | APLOG_DEBUG, 0, server_p, "Registering for server_p -> process -> pconf [%#lx]", (unsigned long int) server_p -> process -> pconf);
-	apr_pool_cleanup_register (server_p -> process -> pconf, (void *) "Cleaning up server_p -> process -> pconf", CleanUpPool, apr_pool_cleanup_null);
-
-	return OK;
-}
-
