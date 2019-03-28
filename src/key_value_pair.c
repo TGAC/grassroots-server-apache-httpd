@@ -1,18 +1,18 @@
 /*
-** Copyright 2014-2016 The Earlham Institute
-** 
-** Licensed under the Apache License, Version 2.0 (the "License");
-** you may not use this file except in compliance with the License.
-** You may obtain a copy of the License at
-** 
-**     http://www.apache.org/licenses/LICENSE-2.0
-** 
-** Unless required by applicable law or agreed to in writing, software
-** distributed under the License is distributed on an "AS IS" BASIS,
-** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-** See the License for the specific language governing permissions and
-** limitations under the License.
-*/
+ ** Copyright 2014-2016 The Earlham Institute
+ **
+ ** Licensed under the Apache License, Version 2.0 (the "License");
+ ** you may not use this file except in compliance with the License.
+ ** You may obtain a copy of the License at
+ **
+ **     http://www.apache.org/licenses/LICENSE-2.0
+ **
+ ** Unless required by applicable law or agreed to in writing, software
+ ** distributed under the License is distributed on an "AS IS" BASIS,
+ ** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ** See the License for the specific language governing permissions and
+ ** limitations under the License.
+ */
 /* Include the required headers from httpd */
 
 #include <string.h>
@@ -43,9 +43,9 @@
 
 
 #ifdef _DEBUG
-	#define KEY_VALUE_PAIR_DEBUG	(STM_LEVEL_FINE)
+#define KEY_VALUE_PAIR_DEBUG	(STM_LEVEL_FINE)
 #else
-	#define KEY_VALUE_PAIR_DEBUG	(STM_LEVEL_NONE)
+#define KEY_VALUE_PAIR_DEBUG	(STM_LEVEL_NONE)
 #endif
 
 
@@ -63,16 +63,16 @@ typedef struct JsonRequest
 
 #if AP_SERVER_MAJORVERSION_NUMBER >= 2
 
-	#if AP_SERVER_MINORVERSION_NUMBER == 4
-		static bool ConvertFormPairToKeyValuePair (request_rec *req_p, ap_form_pair_t *pair_p, KeyValuePair *key_value_pair_p);
+#if AP_SERVER_MINORVERSION_NUMBER == 4
+static bool ConvertFormPairToKeyValuePair (request_rec *req_p, ap_form_pair_t *pair_p, KeyValuePair *key_value_pair_p);
 
-		static json_t *ConvertGetParametersToJSON (request_rec *req_p);
+static json_t *ConvertGetParametersToJSON (request_rec *req_p);
 
-		static json_t *ConvertPostParametersToJSON (request_rec *req_p);
+static json_t *ConvertPostParametersToJSON (request_rec *req_p);
 
-	#elif AP_SERVER_MINORVERSION_NUMBER == 2		/* #if AP_SERVER_MINORVERSION_NUMBER == 4 */
+#elif AP_SERVER_MINORVERSION_NUMBER == 2		/* #if AP_SERVER_MINORVERSION_NUMBER == 4 */
 
-	#endif		/* #else #if AP_SERVER_MINORVERSION_NUMBER == 2 */
+#endif		/* #else #if AP_SERVER_MINORVERSION_NUMBER == 2 */
 
 #endif		/* #if AP_SERVER_MAJORVERSION_NUMBER >= 2 */
 
@@ -96,20 +96,20 @@ json_t *GetRequestBodyAsJSON (request_rec *req_p)
 {
 	json_t *params_p = NULL;
 	ByteBuffer *buffer_p = AllocateByteBuffer (1024);
-	
+
 	if (buffer_p)
 		{
 			int res = ReadRequestBody (req_p, buffer_p);
-			
+
 			if (res == 0)
 				{
 					json_error_t err;
 					const char *data_s = GetByteBufferData (buffer_p);
 					params_p = json_loads (data_s, 0, &err);
-					
-					#if KEY_VALUE_PAIR_DEBUG >= STM_LEVEL_FINER
+
+#if KEY_VALUE_PAIR_DEBUG >= STM_LEVEL_FINER
 					PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "Request Body:\\n%s\\n", data_s);
-					#endif
+#endif
 
 					if (!params_p)
 						{
@@ -139,6 +139,10 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p)
 	apr_table_t *params_table_p = NULL;
 	const char *path_s = req_p -> path_info;
 
+	/*
+	 * Then get all of the params
+	 */
+	ap_args_to_table (req_p, &params_table_p);
 
 	/*
 	 * The first level is the service name
@@ -146,9 +150,10 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p)
 	if (path_s)
 		{
 			const char *SERVICE_S = "/service/";
-			size_t l = strlen (SERVICE_S);
+			const char *OPERATION_S = "/operation/";
+			size_t l;
 
-			if (strncmp (path_s, SERVICE_S, l) == 0)
+			if (strncmp (path_s, SERVICE_S, (l = strlen (SERVICE_S))) == 0)
 				{
 					json_t *service_req_p = json_object ();
 
@@ -172,11 +177,6 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p)
 																{
 																	if (json_object_set_new (parameter_set_json_p, PARAM_SET_PARAMS_S, params_json_p) == 0)
 																		{
-																			/*
-																			 * Then get all of the params
-																			 */
-																			ap_args_to_table (req_p, &params_table_p);
-
 																			int res = apr_table_do (AddParamsToJSON, params_json_p, params_table_p, NULL);
 
 																			if (res == TRUE)
@@ -226,12 +226,12 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p)
 						}		/* if (service_req_p) */
 
 				}		/* if (strncmp (path_s, SERVICE_S, l) == 0) */
-			else
+			else if (strncmp (path_s, OPERATION_S, (l = strlen (OPERATION_S))) == 0)
 				{
-					const char *OPERATION_S = "/operation/";
-					size_t l = strlen (OPERATION_S);
+					json_t *json_req_p = NULL;
+					SchemaVersion *sv_p = AllocateSchemaVersion (CURRENT_SCHEMA_VERSION_MAJOR, CURRENT_SCHEMA_VERSION_MINOR);
 
-					if (strncmp (path_s, OPERATION_S, l) == 0)
+					if (sv_p)
 						{
 							Operation op;
 
@@ -239,35 +239,68 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p)
 
 							op = GetOperationFromString (path_s);
 
-							if (op != OP_NONE)
+							switch (op)
 								{
-									SchemaVersion *sv_p = AllocateSchemaVersion (CURRENT_SCHEMA_VERSION_MAJOR, CURRENT_SCHEMA_VERSION_MINOR);
+									case OP_LIST_ALL_SERVICES:
+										json_req_p = GetOperationAsJSON (op, sv_p);
+										break;
 
-									if (sv_p)
+									case OP_GET_SERVICE_INFO:
 										{
-											json_t *op_p = GetOperationAsJSON (op, sv_p);
+											const char *service_name_s = apr_table_get (params_table_p, SERVICE_NAME_S);
 
-											if (op_p)
+											if (service_name_s)
 												{
-													return op_p;
-												}
-											else
-												{
-													PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "GetOperationAsJSON failed for %s", GetOperationAsString (op));
+													json_t *service_names_p = json_array ();
+
+													if (service_names_p)
+														{
+															json_t *service_name_json_p = json_string (service_name_s);
+
+															if (service_name_json_p)
+																{
+																	if (json_array_append_new (service_names_p, service_name_json_p) == 0)
+																		{
+																			json_req_p = GetServicesRequest (NULL, op, SERVICE_NAME_S, service_names_p, sv_p);
+
+																			if (json_req_p)
+																				{
+
+																				}
+																		}
+																	else
+																		{
+																			json_decref (service_name_json_p);
+																		}
+																}
+
+															if (!json_req_p)
+																{
+																	json_decref (service_names_p);
+																}
+														}
+
+
 												}
 
-											FreeSchemaVersion (sv_p);
 										}
-									else
-										{
-											PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "AllocateSchemaVersion failed for %s", req_p -> path_info);
-										}
+										break;
+
+									case OP_NONE:
+										break;
+
+									default:
+										break;
 								}
-							else
-								{
-									PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "GetOperationFromString failed for \"%s\"", path_s);
-								}
+
+							FreeSchemaVersion (sv_p);
 						}
+					else
+						{
+							PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "AllocateSchemaVersion failed for %s", req_p -> path_info);
+						}
+
+					return json_req_p;
 				}
 		}
 
@@ -317,29 +350,29 @@ static bool ConvertFormPairToKeyValuePair (request_rec *req_p, ap_form_pair_t *p
 	apr_off_t len;
 	apr_size_t size;
 	char *buffer_s = NULL;
-	
+
 	apr_brigade_length (pair_p -> value, 1, &len);
 	size = (apr_size_t) len;
 
 	buffer_s = apr_palloc (req_p -> pool, size + 1);
-	
+
 	if (buffer_s)
 		{
 			char *name_s = apr_pstrdup (req_p -> pool, pair_p -> name);
-			
+
 			if (name_s)
 				{
 					apr_brigade_flatten (pair_p -> value, buffer_s, &size);
 					* (buffer_s + len) = '\0';
-					
+
 					key_value_pair_p -> kvp_key_s = name_s;
 					key_value_pair_p -> kvp_value_s = buffer_s;										
-					
+
 					success_flag = true;
 				}
 		}
-			
-	
+
+
 	return success_flag;
 }
 
@@ -347,47 +380,47 @@ static bool ConvertFormPairToKeyValuePair (request_rec *req_p, ap_form_pair_t *p
 static json_t *ConvertGetParametersToJSON (request_rec *req_p)
 {
 	json_t *root_p = json_object ();
-	
+
 	if (root_p)
 		{
 			apr_table_t *params_p = NULL;
 			JsonRequest json_req;
-			
+
 			json_req.jr_req_p = req_p;
 			json_req.jr_json_p = root_p;
-						
+
 			ap_args_to_table (req_p, &params_p);  
 
 			if (apr_table_do (AddParameter, &json_req, params_p, NULL) == TRUE)
 				{
-					
+
 				}
 			else
 				{
-					
+
 				}
-			
+
 		}		/* if (root_p) */
-	else
-		{
-			
-		}
-		
+		else
+			{
+
+			}
+
 	return root_p;
 }
 
 
 static json_t *ConvertPostParametersToJSON (request_rec *req_p)
 {
-  json_t *root_p = NULL;
+	json_t *root_p = NULL;
 	apr_array_header_t *pairs_p = NULL;
-  int res;
-	
- 	/* get the form parameters */
-  res = ap_parse_form_data (req_p, NULL, &pairs_p, -1, HUGE_STRING_LEN);
+	int res;
 
-  if ((res == OK) && pairs_p) 
-  	{
+	/* get the form parameters */
+	res = ap_parse_form_data (req_p, NULL, &pairs_p, -1, HUGE_STRING_LEN);
+
+	if ((res == OK) && pairs_p)
+		{
 			/* 
 			 * Check to see it the params are individual json objects 
 			 * or if they are a single entry
@@ -395,9 +428,9 @@ static json_t *ConvertPostParametersToJSON (request_rec *req_p)
 			if (pairs_p -> nelts == 1)
 				{
 					KeyValuePair kvp;
-					
+
 					ap_form_pair_t *pair_p = (ap_form_pair_t *) apr_array_pop (pairs_p);
-					
+
 					if (ConvertFormPairToKeyValuePair (req_p, pair_p, &kvp))
 						{
 							if ((kvp.kvp_key_s) && (strcmp (kvp.kvp_key_s, "json") == 0))
@@ -408,13 +441,13 @@ static json_t *ConvertPostParametersToJSON (request_rec *req_p)
 									if (!root_p)
 										{
 											ap_log_rerror (APLOG_MARK, APLOG_ERR, 0, req_p, "Failed to parse \"%s\", error: %s, source %s line %d columd %d offset %d", 
-												kvp.kvp_value_s, error.text, error.source, error.line, error.column, error.position);																		
+																		 kvp.kvp_value_s, error.text, error.source, error.line, error.column, error.position);
 										}
 								}
 							else
 								{
 									json_t *root_p = json_object ();
-									
+
 									if (root_p)
 										{
 											AddJsonChild (root_p, kvp.kvp_key_s, kvp.kvp_value_s, req_p);
@@ -424,17 +457,17 @@ static json_t *ConvertPostParametersToJSON (request_rec *req_p)
 											ap_log_rerror (APLOG_MARK, APLOG_ERR, 0, req_p, "Not enough memory to allocate root json object");									
 										}		
 								}
-								
+
 						}		/* if (ConvertFormPairToKeyValuePair (req_p, pair_p, &kvp)) */
 					else
 						{
-							
+
 						}
 				}
 			else
 				{
 					json_t *root_p = json_object ();
-							
+
 					if (root_p)
 						{
 							bool success_flag = true;
@@ -443,34 +476,34 @@ static json_t *ConvertPostParametersToJSON (request_rec *req_p)
 							while (pairs_p && !apr_is_empty_array (pairs_p)) 
 								{
 									KeyValuePair kvp;
-									
+
 									ap_form_pair_t *pair_p = (ap_form_pair_t *) apr_array_pop (pairs_p);
-									
+
 									if (ConvertFormPairToKeyValuePair (req_p, pair_p, &kvp))
 										{
 											success_flag = AddJsonChild (root_p, kvp.kvp_key_s, kvp.kvp_value_s, req_p);											
 										}
 									else
 										{
-											
+
 										}
-										
+
 								}		/* while (pairs_p && !apr_is_empty_array (pairs_p)) */
-								
+
 						}		/* if (root_p) */	
 					else
 						{
 							ap_log_rerror (APLOG_MARK, APLOG_ERR, 0, req_p, "Not enough memory to allocate root json object");									
 						}		
-				
+
 				}
-				
+
 		}		/* if ((res == OK) && pairs_p)  */			
 	else
 		{
 			ap_log_rerror (APLOG_MARK, APLOG_ERR, 0, req_p, "Failed to get post parameters from %s", req_p -> uri);									
 		}  			 
-		 
+
 	return root_p;
 }
 
@@ -495,25 +528,25 @@ static int AddParameter (void *rec_p, const char *key_s, const char *value_s)
 
 
 
-	/* 
-	 * break 
-	 * 	
-	 * 	foo.bar.stuff = bob 
-	 * 
-	 * into 
-	 * 
-	 * 	foo {
-	 * 		bar {
-	 * 			stuff = bob
-	 *		}
-	 * 	}
-	 */  
-	
+/*
+ * break
+ *
+ * 	foo.bar.stuff = bob
+ *
+ * into
+ *
+ * 	foo {
+ * 		bar {
+ * 			stuff = bob
+ *		}
+ * 	}
+ */
+
 static bool AddJsonChild (json_t *parent_p, const char *key_s, const char *value_s, request_rec *req_p)
 {
 	bool success_flag = true;		
 	char *copied_key_s = apr_pstrdup (req_p -> pool, key_s);
-	
+
 	if (copied_key_s)
 		{
 			char *last_p = NULL;
@@ -521,17 +554,17 @@ static bool AddJsonChild (json_t *parent_p, const char *key_s, const char *value
 			char *next_token_p = NULL;
 			bool loop_flag = (this_token_p != NULL);
 			json_t *child_p = NULL;
-			
+
 			while (loop_flag && success_flag)
 				{
 					next_token_p = apr_strtok (NULL, ".", &last_p);
-					
+
 					child_p = json_object_get (parent_p, this_token_p);
-					
+
 					if (!child_p)
 						{
 							success_flag = false;
-							
+
 							if (next_token_p)
 								{
 									child_p = json_object ();
@@ -541,7 +574,7 @@ static bool AddJsonChild (json_t *parent_p, const char *key_s, const char *value
 									child_p = json_string (value_s);									
 								}
 
-							
+
 							if (child_p)
 								{
 									if (json_object_set_new (parent_p, this_token_p, child_p) == 0)
@@ -552,7 +585,7 @@ static bool AddJsonChild (json_t *parent_p, const char *key_s, const char *value
 										{
 											PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Couldn't add json value for %s to json parameters", this_token_p);
 											ap_log_rerror (APLOG_MARK, APLOG_ERR, 0, req_p, "Couldn't add json value for %s to json parameters", this_token_p);
-											
+
 											json_decref (child_p);
 											child_p = NULL;
 										}
@@ -563,7 +596,7 @@ static bool AddJsonChild (json_t *parent_p, const char *key_s, const char *value
 									ap_log_rerror (APLOG_MARK, APLOG_ERR, 0, req_p, "Not enough memory to allocate json child  for %s", this_token_p);
 								}
 						}		/* if (!child_p) */
-					
+
 					if (success_flag)
 						{
 							parent_p = child_p;
@@ -580,7 +613,7 @@ static bool AddJsonChild (json_t *parent_p, const char *key_s, const char *value
 						}
 
 				}		/* while (loop_flag) */
-									
+
 		}		/* if (copied_key_s) */
 	else
 		{
@@ -597,39 +630,39 @@ static int ReadRequestBody (request_rec *req_p, ByteBuffer *buffer_p)
 
 	if (ret == OK)
 		{
-	    if (ap_should_client_block (req_p))
-	    	{
-	        /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-	        char         temp_s [HUGE_STRING_LEN] = { 0 };
-	        apr_off_t    rsize, len_read, rpos = 0;
-	        apr_off_t length = req_p->remaining;
-	        /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-	        const char *buffer_s = (const char *) apr_pcalloc (req_p -> pool, (apr_size_t) (length + 1));
+			if (ap_should_client_block (req_p))
+				{
+					/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+					char         temp_s [HUGE_STRING_LEN] = { 0 };
+					apr_off_t    rsize, len_read, rpos = 0;
+					apr_off_t length = req_p->remaining;
+					/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+					const char *buffer_s = (const char *) apr_pcalloc (req_p -> pool, (apr_size_t) (length + 1));
 
-	        while (((len_read = ap_get_client_block (req_p, temp_s, HUGE_STRING_LEN)) > 0) && (ret == OK))
-	        	{
-	            if((rpos + len_read) > length)
-	            	{
-	                rsize = length - rpos;
-	            	}
-	            else
-	            	{
-	                rsize = len_read;
-	            	}
+					while (((len_read = ap_get_client_block (req_p, temp_s, HUGE_STRING_LEN)) > 0) && (ret == OK))
+						{
+							if((rpos + len_read) > length)
+								{
+									rsize = length - rpos;
+								}
+							else
+								{
+									rsize = len_read;
+								}
 
 							memcpy ((char *) buffer_s + rpos, temp_s, (size_t) rsize);
 							rpos += rsize;
-	        	}
+						}
 
-          if (!AppendToByteBuffer (buffer_p, buffer_s, length))
-          	{
-          		ret = HTTP_INTERNAL_SERVER_ERROR;
-          	}
+					if (!AppendToByteBuffer (buffer_p, buffer_s, length))
+						{
+							ret = HTTP_INTERNAL_SERVER_ERROR;
+						}
 
-	    	}
+				}
 		}
 
-    return ret;
+	return ret;
 }
 
 
@@ -640,34 +673,34 @@ int ReadBody (request_rec *req_p, ByteBuffer *buffer_p)
 
 	if (ret == OK)
 		{
-	    if (ap_should_client_block (req_p))
-	    	{
-	        /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-	        char         temp_s [HUGE_STRING_LEN];
-	        apr_off_t    rsize, len_read, rpos = 0;
-	        apr_off_t length = req_p->remaining;
-	        /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+			if (ap_should_client_block (req_p))
+				{
+					/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+					char         temp_s [HUGE_STRING_LEN];
+					apr_off_t    rsize, len_read, rpos = 0;
+					apr_off_t length = req_p->remaining;
+					/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-	        while (((len_read = ap_get_client_block (req_p, temp_s, sizeof(temp_s))) > 0) && (ret == OK))
-	        	{
-	            if((rpos + len_read) > length)
-	            	{
-	                rsize = length - rpos;
-	            	}
-	            else
-	            	{
-	                rsize = len_read;
-	            	}
+					while (((len_read = ap_get_client_block (req_p, temp_s, sizeof(temp_s))) > 0) && (ret == OK))
+						{
+							if((rpos + len_read) > length)
+								{
+									rsize = length - rpos;
+								}
+							else
+								{
+									rsize = len_read;
+								}
 
-	            if (!AppendToByteBuffer (buffer_p, temp_s, rsize))
-	            	{
-	            		ret = HTTP_INTERNAL_SERVER_ERROR;
-	            	}
-	        	}
-	    	}
+							if (!AppendToByteBuffer (buffer_p, temp_s, rsize))
+								{
+									ret = HTTP_INTERNAL_SERVER_ERROR;
+								}
+						}
+				}
 		}
 
-    return ret;
+	return ret;
 }
 
 
