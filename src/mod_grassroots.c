@@ -78,6 +78,7 @@ static void *MergeServerConfig (apr_pool_t *pool_p, void *base_config_p, void *v
 static void *CreateDirectoryConfig (apr_pool_t *pool_p, char *context_s);
 static void *MergeDirectoryConfig (apr_pool_t *pool_p, void *base_config_p, void *new_config_p);
 
+static void *MergeConfigs (apr_pool_t *pool_p, void *base_p, void *new_p);
 
 static ModGrassrootsConfig *CreateConfig (apr_pool_t *pool_p, server_rec *server_p);
 
@@ -88,6 +89,9 @@ static apr_status_t CleanUpOutputStream (void *value_p);
 static apr_status_t ClearServerResources (void *value_p);
 
 static apr_status_t CleanUpTasks (void *value_p);
+
+
+static bool CopyStringValue (apr_pool_t *pool_p, const char *base_src_s, const char *add_src_s, char **dest_ss);
 
 /*
  * Based on code taken from http://marc.info/?l=apache-modules&m=107669698011831
@@ -203,18 +207,71 @@ static ModGrassrootsConfig *CreateConfig (apr_pool_t *pool_p, server_rec *server
 }
 
 
-static void *MergeDirectoryConfig (apr_pool_t *pool_p, void *base_config_p, void *new_config_p)
+static bool CopyStringValue (apr_pool_t *pool_p, const char *base_src_s, const char *add_src_s, char **dest_ss)
 {
-	/* currently ignore the vhosts config */
-	return base_config_p;
+	bool success_flag = false;
+	const char *src_s = add_src_s ? add_src_s : base_src_s;
+
+	if (src_s)
+		{
+			*dest_ss = apr_pstrdup (pool_p, src_s);
+
+			if (*dest_ss)
+				{
+					success_flag = true;
+				}
+			else
+				{
+					ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to copy config value \"%s\"", src_s);
+				}
+		}
+	else
+		{
+			success_flag = true;
+		}
+
+	return success_flag;
+}
+
+
+static void *MergeDirectoryConfig (apr_pool_t *pool_p, void *base_p, void *new_p)
+{
+	return MergeConfigs (pool_p, base_p, new_p);
 }
 
 
 
-static void *MergeServerConfig (apr_pool_t *pool_p, void *base_config_p, void *vhost_config_p)
+static void *MergeServerConfig (apr_pool_t *pool_p, void *base_p, void *new_p)
 {
-	/* currently ignore the vhosts config */
-	return base_config_p;
+	return MergeConfigs (pool_p, base_p, new_p);
+}
+
+
+static void *MergeConfigs (apr_pool_t *pool_p, void *base_p, void *new_p)
+{
+	ModGrassrootsConfig *base_config_p = (ModGrassrootsConfig *) base_p;
+	ModGrassrootsConfig *new_config_p = (ModGrassrootsConfig *) new_p;
+	ModGrassrootsConfig *merged_config_p = (ModGrassrootsConfig *) CreateDirectoryConfig (pool_p, NULL);
+
+	if (merged_config_p)
+		{
+			if (CopyStringValue (pool_p, base_config_p -> wisc_root_path_s, new_config_p -> wisc_root_path_s, & (merged_config_p -> wisc_root_path_s)))
+				{
+					if (CopyStringValue (pool_p, base_config_p -> wisc_provider_name_s, new_config_p -> wisc_provider_name_s, & (merged_config_p -> wisc_provider_name_s)))
+						{
+							merged_config_p -> wisc_jobs_manager_p = (new_config_p -> wisc_jobs_manager_p) ? new_config_p -> wisc_jobs_manager_p : base_config_p -> wisc_jobs_manager_p;
+							merged_config_p -> wisc_server_p = (new_config_p -> wisc_server_p) ? new_config_p -> wisc_server_p : base_config_p -> wisc_server_p;
+							merged_config_p -> wisc_servers_manager_p = (new_config_p -> wisc_servers_manager_p) ? new_config_p -> wisc_jobs_manager_p : base_config_p -> wisc_servers_manager_p;
+						}
+
+				}
+		}
+	else
+		{
+			ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to allocate merged config");
+		}
+
+	return merged_config_p;
 }
 
 
@@ -402,6 +459,9 @@ static apr_status_t CleanUpOutputStream (void *value_p)
 /* Handler for the "GrassrootsRoot" directive */
 static const char *SetGrassrootsRootPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s)
 {
+	ModGrassrootsConfig *config_p = (ModGrassrootsConfig *) cfg_p;
+
+	config_p -> wisc_root_path_s = arg_s;
 	SetServerRootDirectory (arg_s);
 
 	return NULL;
