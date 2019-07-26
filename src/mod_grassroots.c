@@ -69,6 +69,8 @@ static int GrassrootsPostConfig (apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t
 
 static const char *SetGrassrootsRootPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
 static const char *SetGrassrootsCacheProvider (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
+static const char *SetGrassrootsServersManager (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
+static const char *SetGrassrootsJobsManager (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
 
 static void *CreateServerConfig (apr_pool_t *pool_p, server_rec *server_p);
 
@@ -101,10 +103,24 @@ static apr_status_t CleanUpPool (void *data_p);
 static int PoolDebug (apr_pool_t *config_pool_p, apr_pool_t *log_pool_p, apr_pool_t *temp_pool_p, server_rec *server_p);
 
 
+
+/** The cache provider to use. */
+const char *wisc_provider_name_s;
+
+/** The server_rec that the module is running on. */
+server_rec *wisc_server_p;
+
+/** The JobsManager that the module is using. */
+APRJobsManager *wisc_jobs_manager_p;
+
+/** The ServersManager that the module is using. */
+APRServersManager *wisc_servers_manager_p;
 static const command_rec s_grassroots_directives [] =
 {
 	AP_INIT_TAKE1 ("GrassrootsCache", SetGrassrootsCacheProvider, NULL, ACCESS_CONF, "The provider for the Jobs Cache"),
 	AP_INIT_TAKE1 ("GrassrootsRoot", SetGrassrootsRootPath, NULL, ACCESS_CONF, "The path to the Grassroots installation"),
+	AP_INIT_TAKE1 ("GrassrootsServersManager", SetGrassrootsServersManager, NULL, ACCESS_CONF, "The path to the Grassroots Servers Manager Module to use"),
+	AP_INIT_TAKE1 ("GrassrootsJobManager", SetGrassrootsJobsManager, NULL, ACCESS_CONF, "The path to the Grassroots Jobs Manager Module to use"),
 	{ NULL }
 };
 
@@ -514,6 +530,23 @@ static const char *SetGrassrootsCacheProvider (cmd_parms *cmd_p, void *cfg_p, co
   return err_msg_s;
 }
 
+
+/* Handler for the "GrassrootsServersManager" directive */
+static const char *SetGrassrootsServersManager (cmd_parms *cmd_p, void *cfg_p, const char *arg_s)
+{
+	ModGrassrootsConfig *config_p = (ModGrassrootsConfig *) cfg_p;
+
+	return NULL;
+}
+
+
+/* Handler for the "GrassrootsJobsManager" directive */
+static const char *SetGrassrootsJobsManager (cmd_parms *cmd_p, void *cfg_p, const char *arg_s)
+{
+	ModGrassrootsConfig *config_p = (ModGrassrootsConfig *) cfg_p;
+
+	return NULL;
+}
 
 
 /* The handler function for our module.
