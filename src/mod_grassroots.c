@@ -103,6 +103,8 @@ static apr_status_t CleanUpPool (void *data_p);
 static int PoolDebug (apr_pool_t *config_pool_p, apr_pool_t *log_pool_p, apr_pool_t *temp_pool_p, server_rec *server_p);
 
 
+static NamedGrassrootsServer *GetOrCreateNamedGrassrootsServer (const char *location_s);
+
 
 /** The cache provider to use. */
 const char *wisc_provider_name_s;
@@ -647,6 +649,13 @@ static apr_status_t CleanUpPool (void *data_p)
 	fflush (stdout);
 
 	return OK;
+}
+
+
+
+static NamedGrassrootsServer *GetOrCreateNamedGrassrootsServer (const char *location_s)
+{
+
 }
 
 
