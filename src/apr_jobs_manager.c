@@ -173,7 +173,7 @@ bool PostConfigAPRJobsManager (APRJobsManager *manager_p, apr_pool_t *config_poo
 bool APRJobsManagerChildInit (apr_pool_t *pool_p, server_rec *server_p)
 {
 	ModGrassrootsConfig *config_p = ap_get_module_config (server_p -> module_config, GetGrassrootsModule ());
-	bool success_flag = InitAPRGlobalStorageForChild (config_p -> wisc_jobs_manager_p -> ajm_store_p, pool_p);
+	bool success_flag = true; // InitAPRGlobalStorageForChild (config_p -> wisc_jobs_manager_p -> ajm_store_p, pool_p);
 
 	return success_flag;
 }

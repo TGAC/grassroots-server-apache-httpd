@@ -24,13 +24,22 @@
 #include "apr_grassroots_servers.h"
 
 
-
 NamedGrassrootsServer *AllocateNamedGrassrootsServer (const char *location_s, GrassrootsServer *server_p, apr_pool_t *pool_p)
 {
 	char *copied_location_s = apr_pstrdup (pool_p, location_s);
 
 	if (copied_location_s)
 		{
+			NamedGrassrootsServer *named_server_p = apr_palloc (pool_p, sizeof (NamedGrassrootsServer));
+
+			if (named_server_p)
+				{
+					named_server_p -> ngsn_location_s = copied_location_s;
+					named_server_p -> ngsn_server_p = server_p;
+
+					return named_server_p;
+				}
+
 
 		}
 
@@ -38,7 +47,9 @@ NamedGrassrootsServer *AllocateNamedGrassrootsServer (const char *location_s, Gr
 }
 
 
-void FreeNamedGrassrootsServer (NamedGrassrootsServer *server_p);
+void FreeNamedGrassrootsServer (NamedGrassrootsServer *server_p)
+{
+
+}
 
 
-bool GetOrCreateNamedGrassrootsServer (const char *location_s);

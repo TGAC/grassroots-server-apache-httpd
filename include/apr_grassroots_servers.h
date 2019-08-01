@@ -43,8 +43,5 @@ NamedGrassrootsServer *AllocateNamedGrassrootsServer (const char *location_s, Gr
 void FreeNamedGrassrootsServer (NamedGrassrootsServer *server_p);
 
 
-bool GetOrCreateNamedGrassrootsServer (const char *location_s);
-
-
 
 #endif /* SERVERS_APACHE_SERVER_INCLUDE_APR_GRASSROOTS_SERVERS_H_ */

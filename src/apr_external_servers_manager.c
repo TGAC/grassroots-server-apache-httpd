@@ -178,7 +178,7 @@ bool PostConfigAPRServersManager (APRServersManager *manager_p, apr_pool_t *serv
 bool APRServersManagerChildInit (apr_pool_t *pool_p, server_rec *server_p)
 {
 	ModGrassrootsConfig *config_p = ap_get_module_config (server_p -> module_config, GetGrassrootsModule ());
-	bool success_flag = InitAPRGlobalStorageForChild (config_p -> wisc_servers_manager_p -> asm_store_p, pool_p);
+	bool success_flag = true; // InitAPRGlobalStorageForChild (config_p -> wisc_servers_manager_p -> asm_store_p, pool_p);
 
 	return success_flag;
 }

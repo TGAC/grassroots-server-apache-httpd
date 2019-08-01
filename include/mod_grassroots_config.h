@@ -94,19 +94,16 @@ typedef struct APRServersManager
 typedef struct
 {
 	/** The path to the Grassroots installation */
-	const char *wisc_root_path_s;
+	char *mgc_root_path_s;
 
 	/** The cache provider to use. */
-	const char *wisc_provider_name_s;
-
-	/** The server_rec that the module is running on. */
-	server_rec *wisc_server_p;
+	char *mgc_provider_name_s;
 
 	/** The JobsManager that the module is using. */
-	APRJobsManager *wisc_jobs_manager_p;
+	char *mgc_jobs_manager_s;
 
 	/** The ServersManager that the module is using. */
-	APRServersManager *wisc_servers_manager_p;
+	char *mgc_servers_manager_s;
 
 } ModGrassrootsConfig;
 
