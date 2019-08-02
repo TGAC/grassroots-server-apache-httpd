@@ -45,6 +45,13 @@
 #define APR_JOBS_MANAGER_DEBUG	(STM_LEVEL_NONE)
 #endif
 
+
+typedef struct APRSOCacheData
+{
+	GrassrootsServer *ascd_grassroots_p;
+	LinkedList *ascd_jobs_p;
+} APRSOCacheData;
+
 /**
  * The APRJobsManager stores key value pairs. The keys are the uuids for
  * the ServiceJobs that are converted to strings. The values are the ServiceJob
@@ -79,7 +86,8 @@ static LinkedList *GetAllServiceJobsFromAprJobsManager (struct JobsManager *mana
 
 static apr_status_t AddServiceJobFromSOCache (ap_socache_instance_t *instance_p, server_rec *server_p, void *user_data_p, const unsigned char *id_s, unsigned int id_length, const unsigned char *data_p, unsigned int data_length, apr_pool_t *pool_p);
 
-static ServiceJob *RebuildServiceJob (char *value_s);
+
+static ServiceJob *RebuildServiceJob (char *value_s, GrassrootsServer *grassroots_p);
 
 /**************************/
 
@@ -170,12 +178,22 @@ bool PostConfigAPRJobsManager (APRJobsManager *manager_p, apr_pool_t *config_poo
 
 
 
-bool APRJobsManagerChildInit (apr_pool_t *pool_p, server_rec *server_p)
+APRJobsManager *APRJobsManagerChildInit (apr_pool_t *pool_p, server_rec *server_p)
 {
 	ModGrassrootsConfig *config_p = ap_get_module_config (server_p -> module_config, GetGrassrootsModule ());
-	bool success_flag = true; // InitAPRGlobalStorageForChild (config_p -> wisc_jobs_manager_p -> ajm_store_p, pool_p);
+	APRJobsManager *manager_p = InitAPRJobsManager (server_p, pool_p, config_p -> mgc_provider_name_s);
 
-	return success_flag;
+	if (manager_p)
+		{
+			if (InitAPRGlobalStorageForChild (manager_p -> ajm_store_p, pool_p))
+				{
+					return manager_p;
+				}
+
+			DestroyAPRJobsManager (manager_p);
+		}
+
+	return NULL;
 }
 
 
@@ -291,11 +309,14 @@ static ServiceJob *QueryServiceJobFromAprJobsManager (JobsManager *jobs_manager_
 
 	if (value_p)
 		{
+			GrassrootsServer *grassroots_p = GetGrassrootsServerFromJobsManager (jobs_manager_p);
+
 			#if APR_JOBS_MANAGER_DEBUG >= STM_LEVEL_FINER
 			PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "For job %s, got: \"%s\"", uuid_s, value_p);
 			#endif
 
-			job_p = RebuildServiceJob ((char *) value_p);
+
+			job_p = RebuildServiceJob ((char *) value_p, grassroots_p);
 
 			if (!job_p)
 				{
@@ -314,7 +335,7 @@ static ServiceJob *QueryServiceJobFromAprJobsManager (JobsManager *jobs_manager_
 
 
 
-static ServiceJob *RebuildServiceJob (char *value_s)
+static ServiceJob *RebuildServiceJob (char *value_s, GrassrootsServer *grassroots_p)
 {
 	json_error_t err;
 	ServiceJob *job_p = NULL;
@@ -322,7 +343,7 @@ static ServiceJob *RebuildServiceJob (char *value_s)
 
 	if (job_json_p)
 		{
-			job_p = CreateServiceJobFromJSON (job_json_p);
+			job_p = CreateServiceJobFromJSON (job_json_p, grassroots_p);
 
 			if (!job_p)
 				{
@@ -379,31 +400,38 @@ apr_status_t CleanUpAPRJobsManager (void *value_p)
 
 static LinkedList *GetAllServiceJobsFromAprJobsManager (struct JobsManager *manager_p)
 {
-	LinkedList *servers_p = AllocateLinkedList (FreeServiceJobNode);
+	LinkedList *jobs_p = AllocateLinkedList (FreeServiceJobNode);
 
-	if (servers_p)
+	if (jobs_p)
 		{
 			APRJobsManager *manager_p = (APRJobsManager *) manager_p;
 			ap_socache_iterator_t *iterator_p = AddServiceJobFromSOCache;
+			GrassrootsServer *grassroots_p = GetGrassrootsServerFromJobsManager (& (manager_p -> ajm_base_manager));
 
-			IterateOverAPRGlobalStorage (manager_p -> ajm_store_p, iterator_p, servers_p);
+			APRSOCacheData data;
 
-			if (servers_p -> ll_size == 0)
+			data.ascd_jobs_p = jobs_p;
+			data.ascd_grassroots_p = grassroots_p;
+
+			IterateOverAPRGlobalStorage (manager_p -> ajm_store_p, iterator_p, &data);
+
+			if (jobs_p -> ll_size == 0)
 				{
-					FreeLinkedList (servers_p);
-					servers_p = NULL;
+					FreeLinkedList (jobs_p);
+					jobs_p = NULL;
 				}
-		}		/* if (servers_p) */
 
-	return servers_p;
+		}		/* if (jobs_p) */
+
+	return jobs_p;
 }
 
 
 static apr_status_t AddServiceJobFromSOCache (ap_socache_instance_t *instance_p, server_rec *server_p, void *user_data_p, const unsigned char *id_s, unsigned int id_length, const unsigned char *data_p, unsigned int data_length, apr_pool_t *pool_p)
 {
 	apr_status_t status = APR_SUCCESS;
-	LinkedList *jobs_p = (LinkedList *) user_data_p;
-	ServiceJob *job_p = RebuildServiceJob ((char *) data_p);
+	APRSOCacheData *apr_data_p = (APRSOCacheData *) user_data_p;
+	ServiceJob *job_p = RebuildServiceJob ((char *) data_p, apr_data_p -> ascd_grassroots_p);
 
 	if (job_p)
 		{
@@ -411,7 +439,7 @@ static apr_status_t AddServiceJobFromSOCache (ap_socache_instance_t *instance_p,
 
 			if (node_p)
 				{
-					LinkedListAddTail (jobs_p, (ListItem *) node_p);
+					LinkedListAddTail (apr_data_p -> ascd_jobs_p, (ListItem *) node_p);
 				}
 			else
 				{

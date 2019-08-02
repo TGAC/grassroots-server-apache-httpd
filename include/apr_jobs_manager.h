@@ -102,7 +102,7 @@ APRJobsManager *InitAPRJobsManager (server_rec *server_p, apr_pool_t *pool_p, co
  * @return <code>true</code> if the APRJobsManager is adjusted correctly,
  * <code>false</code> upon error.
  */
-bool APRJobsManagerChildInit (apr_pool_t *pool_p, server_rec *server_p);
+APRJobsManager *APRJobsManagerChildInit (apr_pool_t *pool_p, server_rec *server_p);
 
 
 /**

@@ -175,12 +175,22 @@ bool PostConfigAPRServersManager (APRServersManager *manager_p, apr_pool_t *serv
 
 
 
-bool APRServersManagerChildInit (apr_pool_t *pool_p, server_rec *server_p)
+APRServersManager *APRServersManagerChildInit (apr_pool_t *pool_p, server_rec *server_p)
 {
 	ModGrassrootsConfig *config_p = ap_get_module_config (server_p -> module_config, GetGrassrootsModule ());
-	bool success_flag = true; // InitAPRGlobalStorageForChild (config_p -> wisc_servers_manager_p -> asm_store_p, pool_p);
+	APRServersManager *manager_p = InitAPRServersManager (server_p, pool_p, config_p -> mgc_provider_name_s);
 
-	return success_flag;
+	if (manager_p)
+		{
+			if (InitAPRGlobalStorageForChild (manager_p -> asm_store_p, pool_p))
+				{
+					return manager_p;
+				}
+
+			DestroyAPRServersManager (& (manager_p -> asm_base_manager));
+		}
+
+	return NULL;
 }
 
 

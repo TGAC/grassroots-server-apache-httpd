@@ -43,7 +43,7 @@
 #include "util_script.h"
 
 
-#include "server.h"
+#include "grassroots_server.h"
 #include "jansson.h"
 #include "service_config.h"
 #include "system_util.h"
@@ -105,7 +105,7 @@ static bool CopyStringValue (apr_pool_t *pool_p, const char *base_src_s, const c
  * sander@temme.net              http://www.temme.net/sander/
  */
 static apr_status_t CleanUpPool (void *data_p);
-static int PoolDebug (apr_pool_t *config_pool_p, apr_pool_t *log_pool_p, apr_pool_t *temp_pool_p, server_rec *server_p);
+
 
 
 static NamedGrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const location_s);
@@ -132,10 +132,8 @@ static const command_rec s_grassroots_directives [] =
 };
 
 
-static APRJobsManager *s_jobs_manager_p = NULL;
 static const char * const s_jobs_manager_cache_id_s = "grassroots-jobs-socache";
 
-static APRServersManager *s_servers_manager_p = NULL;
 static const char * const s_servers_manager_cache_id_s = "grassroots-servers-socache";
 
 
@@ -318,17 +316,59 @@ static void GrassrootsChildInit (apr_pool_t *pool_p, server_rec *server_p)
 	 * it moved to a new address. */
 	if (InitInformationSystem ())
 		{
+			APRJobsManager *apr_jobs_manager_p = NULL;
+			bool job_manager_flag = false;
 			apr_pool_cleanup_register (pool_p, NULL, CloseInformationSystem, apr_pool_cleanup_null);
 
 			/*
 			 * If we don't have a Grassroots-supplied jobs manager, use an Apache one.
 			 */
-			if ((GetJobsManager () != NULL) || (APRJobsManagerChildInit (pool_p, server_p)))
+			if (config_p -> mgc_jobs_manager_s)
 				{
+					job_manager_flag = true;
+				}
+			else
+				{
+					apr_jobs_manager_p = APRJobsManagerChildInit (pool_p, server_p);
+
+					if (apr_jobs_manager_p)
+						{
+							job_manager_flag = true;
+						}
+					else
+						{
+							ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, server_p, "APRJobsManagerChildInit failed");
+						}
+				}
+
+			if (job_manager_flag)
+				{
+					APRServersManager *apr_servers_manager_p = NULL;
+					bool servers_manager_flag = false;
+
 					/*
 					 * If we don't have a Grassroots-supplied servers manager, use an Apache one.
 					 */
-					if ((GetServersManager (grassroots_p) != NULL) || (APRServersManagerChildInit (pool_p, server_p)))
+					if (config_p -> mgc_servers_manager_s)
+						{
+							servers_manager_flag = true;
+						}
+					else
+						{
+							apr_servers_manager_p = APRServersManagerChildInit (pool_p, server_p);
+
+							if (apr_servers_manager_p)
+								{
+									servers_manager_flag = true;
+								}
+							else
+								{
+									ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, server_p, "APRServersManagerChildInit failed");
+								}
+						}
+
+
+					if (servers_manager_flag)
 						{
 							OutputStream *log_p = AllocateApacheOutputStream (server_p);
 
@@ -348,12 +388,13 @@ static void GrassrootsChildInit (apr_pool_t *pool_p, server_rec *server_p)
 											/* Do any clean up required by the running of asynchronous tasks */
 											apr_pool_cleanup_register (pool_p, NULL, CleanUpTasks, apr_pool_cleanup_null);
 
-
 											s_servers_p = apr_array_make (pool_p, 1, sizeof (NamedGrassrootsServer));
 											apr_pool_cleanup_register (pool_p, NULL, CleanUpServers, apr_pool_cleanup_null);
 
+											GrassrootsServer *grassroots_p = NULL;
 
-											ConnectToExternalServers ();
+
+											ConnectToExternalServers (grassroots_p);
 										}
 									else
 										{
@@ -366,17 +407,9 @@ static void GrassrootsChildInit (apr_pool_t *pool_p, server_rec *server_p)
 									ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL , server_p, "AllocateApacheOutputStream for log failed");
 								}
 
-						}		/* if (APRServersManagerChildInit (pool_p, server_p)) */
-					else
-						{
-							ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL , server_p, "APRServersManagerChildInit failed");
-						}
+						}		/* if (servers_manager_flag) */
 
-				}		/* if (APRJobsManagerChildInit (pool_p, server_p)) */
-			else
-				{
-					ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, server_p, "APRJobsManagerChildInit failed");
-				}
+				}		/* if (job_manager_flag) */
 
 		}		/* If (InitInformationSystem ()) */
 	else
@@ -707,11 +740,11 @@ static NamedGrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * con
    */
 	for (i = 0; i < size; ++ i)
 		{
-			NamedGrassrootsServer **temp_server_p = ((NamedGrassrootsServer **) s_servers_p -> elts) [i];
+			NamedGrassrootsServer *temp_server_p = ((NamedGrassrootsServer **) (s_servers_p -> elts)) [i];
 
-			if (strcmp ((*temp_server_p) -> ngsn_location_s, location_s) == 0)
+			if (strcmp ((temp_server_p) -> ngsn_location_s, location_s) == 0)
 				{
-					return *temp_server_p;
+					return temp_server_p;
 				}
 		}
 

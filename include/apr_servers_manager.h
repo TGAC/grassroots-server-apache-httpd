@@ -99,7 +99,7 @@ APRServersManager *InitAPRServersManager (server_rec *server_p, apr_pool_t *pool
  * @return <code>true</code> if the APRServersManager is adjusted correctly,
  * <code>false</code> upon error.
  */
-bool APRServersManagerChildInit (apr_pool_t *pool_p, server_rec *server_p);
+APRServersManager *APRServersManagerChildInit (apr_pool_t *pool_p, server_rec *server_p);
 
 
 /**
