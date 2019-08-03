@@ -34,7 +34,7 @@
 #define ALLOCATE_APR_SERVERS_MANAGER_TAGS (1)
 #include "apr_servers_manager.h"
 #include "json_tools.h"
-#include "grassroots_config.h"
+#include "grassroots_server.h"
 
 
 #ifdef USE_BZIP2

@@ -50,7 +50,6 @@
 #include "streams.h"
 #include "util_mutex.h"
 #include "async_task.h"
-#include "grassroots_config.h"
 
 
 #ifdef _DEBUG
@@ -314,7 +313,7 @@ static void GrassrootsChildInit (apr_pool_t *pool_p, server_rec *server_p)
 	 * to the global mutex and the shared segment. We also
 	 * have to find out the base address of the segment, in case
 	 * it moved to a new address. */
-	if (InitInformationSystem ())
+	if (InitInformationSystem (grassroots_p))
 		{
 			APRJobsManager *apr_jobs_manager_p = NULL;
 			bool job_manager_flag = false;
