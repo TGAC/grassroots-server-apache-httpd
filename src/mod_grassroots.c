@@ -558,15 +558,15 @@ static apr_status_t CleanUpTasks (void *value_p)
 static apr_status_t CleanUpServers (void *value_p)
 {
 	apr_hash_index_t *index_p;
+	apr_pool_t *pool_p = apr_hash_pool_get (s_servers_p);
 
-	for (index_p = apr_hash_first (NULL, s_servers_p); index_p; index_p = apr_hash_next (index_p))
+	for (index_p = apr_hash_first (pool_p, s_servers_p); index_p; index_p = apr_hash_next (index_p))
 		{
 			char *key_s = NULL;
 			GrassrootsServer *grassroots_p = NULL;
 
 			apr_hash_this (index_p, (const void **) &key_s, NULL, (void **) &grassroots_p);
 
-			FreeCopiedString (key_s);
 			FreeGrassrootsServer (grassroots_p);
 		}
 
@@ -761,7 +761,8 @@ static GrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const lo
 
   				if (grassroots_p)
   					{
-  						char *copied_location_s = EasyCopyToNewString (location_s);
+  						apr_pool_t *pool_p = apr_hash_pool_get (s_servers_p);
+  						char *copied_location_s = apr_pstrdup (pool_p, location_s);
 
   						if (copied_location_s)
   							{
