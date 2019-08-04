@@ -28,6 +28,8 @@
 #include "grassroots_server.h"
 #include "linked_list.h"
 
+#include "apr_pools.h"
+
 
 typedef struct NamedGrassrootsServer
 {

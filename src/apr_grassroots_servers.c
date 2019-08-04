@@ -23,14 +23,16 @@
 
 #include "apr_grassroots_servers.h"
 
+#include "apr_strings.h"
 
-NamedGrassrootsServer *AllocateNamedGrassrootsServer (const char *location_s, GrassrootsServer *server_p, apr_pool_t *pool_p)
+
+NamedGrassrootsServer *AllocateNamedGrassrootsServer (const char *location_s, GrassrootsServer *server_p)
 {
-	char *copied_location_s = apr_pstrdup (pool_p, location_s);
+	char *copied_location_s = EasyCopyToNewString (location_s);
 
 	if (copied_location_s)
 		{
-			NamedGrassrootsServer *named_server_p = apr_palloc (pool_p, sizeof (NamedGrassrootsServer));
+			NamedGrassrootsServer *named_server_p = AllocMemory (sizeof (NamedGrassrootsServer));
 
 			if (named_server_p)
 				{
@@ -40,7 +42,6 @@ NamedGrassrootsServer *AllocateNamedGrassrootsServer (const char *location_s, Gr
 					return named_server_p;
 				}
 
-
 		}
 
 	return NULL;
@@ -49,7 +50,10 @@ NamedGrassrootsServer *AllocateNamedGrassrootsServer (const char *location_s, Gr
 
 void FreeNamedGrassrootsServer (NamedGrassrootsServer *server_p)
 {
+	FreeCopiedString (server_p -> ngsn_location_s);
+	FreeGrassrootsServer (server_p -> ngsn_server_p);
 
+	FreeMemory (server_p);
 }
 
 

@@ -81,7 +81,8 @@ SRCS 	= \
 	$(DIR_SRC)/apr_global_storage.c \
 	$(DIR_SRC)/apr_jobs_manager.c \
 	$(DIR_SRC)/apr_external_servers_manager.c \
-	$(DIR_SRC)/apache_output_stream.c
+	$(DIR_SRC)/apache_output_stream.c \
+	$(DIR_SRC)/apr_grassroots_servers.c
 
 LDFLAGS += -L$(DIR_GRASSROOTS_UTIL_LIB) -l$(GRASSROOTS_UTIL_LIB_NAME) \
 	-L$(DIR_GRASSROOTS_SERVICES_LIB) -l$(GRASSROOTS_SERVICES_LIB_NAME) \

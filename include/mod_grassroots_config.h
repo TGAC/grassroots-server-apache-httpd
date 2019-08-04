@@ -105,6 +105,13 @@ typedef struct
 	/** The ServersManager that the module is using. */
 	char *mgc_servers_manager_s;
 
+	/**
+	 * The config filename that the GrassrootsServer should use.
+	 * If this is <code>NULL</code> then the default of
+	 * "grassroots.config" will be used.
+	 */
+	char *mgc_config_s;
+
 } ModGrassrootsConfig;
 
 

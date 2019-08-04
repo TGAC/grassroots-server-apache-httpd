@@ -58,7 +58,10 @@
 	#define MOD_GRASSROOTS_DEBUG	(STM_LEVEL_NONE)
 #endif
 
-static apr_array_header_t *s_servers_p = NULL;
+/**
+ *  An array of NamedGrassrootsServers for each Location and Directory directive
+ */
+static apr_hash_t *s_servers_p = NULL;
 
 
 /* Define prototypes of our functions in this module */
@@ -106,8 +109,7 @@ static bool CopyStringValue (apr_pool_t *pool_p, const char *base_src_s, const c
 static apr_status_t CleanUpPool (void *data_p);
 
 
-
-static NamedGrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const location_s);
+static GrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const location_s, ModGrassrootsConfig *config_p);
 
 
 /** The cache provider to use. */
@@ -307,13 +309,11 @@ static void GrassrootsChildInit (apr_pool_t *pool_p, server_rec *server_p)
 {
 	ModGrassrootsConfig *config_p = ap_get_module_config (server_p -> module_config, &grassroots_module);
 
-	GrassrootsServer *grassroots_p = NULL;
-
 	/* Now that we are in a child process, we have to reconnect
 	 * to the global mutex and the shared segment. We also
 	 * have to find out the base address of the segment, in case
 	 * it moved to a new address. */
-	if (InitInformationSystem (grassroots_p))
+	if (InitInformationSystem ())
 		{
 			APRJobsManager *apr_jobs_manager_p = NULL;
 			bool job_manager_flag = false;
@@ -387,13 +387,9 @@ static void GrassrootsChildInit (apr_pool_t *pool_p, server_rec *server_p)
 											/* Do any clean up required by the running of asynchronous tasks */
 											apr_pool_cleanup_register (pool_p, NULL, CleanUpTasks, apr_pool_cleanup_null);
 
-											s_servers_p = apr_array_make (pool_p, 1, sizeof (NamedGrassrootsServer));
+											s_servers_p = apr_hash_make (pool_p);
 											apr_pool_cleanup_register (pool_p, NULL, CleanUpServers, apr_pool_cleanup_null);
 
-											GrassrootsServer *grassroots_p = NULL;
-
-
-											ConnectToExternalServers (grassroots_p);
 										}
 									else
 										{
@@ -462,6 +458,8 @@ static int GrassrootsPostConfig (apr_pool_t *config_pool_p, apr_pool_t *log_p, a
 
   		if (config_p -> mgc_provider_name_s)
   			{
+  				ret = OK;
+
   				/*
   	  		config_p -> mgc_jobs_manager_p = InitAPRJobsManager (server_p, pool_p, config_p -> mgc_provider_name_s);
 
@@ -559,12 +557,20 @@ static apr_status_t CleanUpTasks (void *value_p)
 
 static apr_status_t CleanUpServers (void *value_p)
 {
-	NamedGrassrootsServer **server_pp;
+	apr_hash_index_t *index_p;
 
-  while ((server_pp = apr_array_pop (s_servers_p)) != NULL)
-  	{
-  		FreeNamedGrassrootsServer (*server_pp);
-  	}
+	for (index_p = apr_hash_first (NULL, s_servers_p); index_p; index_p = apr_hash_next (index_p))
+		{
+			char *key_s = NULL;
+			GrassrootsServer *grassroots_p = NULL;
+
+			apr_hash_this (index_p, (const void **) &key_s, NULL, (void **) &grassroots_p);
+
+			FreeCopiedString (key_s);
+			FreeGrassrootsServer (grassroots_p);
+		}
+
+	apr_hash_clear (s_servers_p);
 
 	return APR_SUCCESS;
 }
@@ -656,47 +662,51 @@ static int GrassrootsHandler (request_rec *req_p)
 
   		if (json_req_p)
   			{
-					int socket_fd = -1;
 					ModGrassrootsConfig *config_p = ap_get_module_config (req_p -> per_dir_config, &grassroots_module);
 					const char *error_s = NULL;
-					GrassrootsServer *grassroots_p = NULL;
+					GrassrootsServer *grassroots_p = GetOrCreateNamedGrassrootsServer (req_p -> uri, config_p);
 
-					json_t *res_p = ProcessServerJSONMessage (grassroots_p, json_req_p, &error_s);
-
-					if (res_p)
+					if (grassroots_p)
 						{
-							char *res_s = json_dumps (res_p, JSON_INDENT (2));
+							json_t *res_p = ProcessServerJSONMessage (grassroots_p, json_req_p, &error_s);
 
-							if (res_s)
+							if (res_p)
 								{
-									res = OK;
+									char *res_s = json_dumps (res_p, JSON_INDENT (2));
 
-									ap_rputs (res_s, req_p);
+									if (res_s)
+										{
+											res = OK;
 
-									free (res_s);
-								}		/* if (res_s) */
+											ap_rputs (res_s, req_p);
+
+											free (res_s);
+										}		/* if (res_s) */
+									else
+										{
+											res = HTTP_INTERNAL_SERVER_ERROR;
+										}
+
+									#if MOD_GRASSROOTS_DEBUG >= STM_LEVEL_FINER
+									PrintJSONRefCounts (res_p, "pre decref res_p", STM_LEVEL_FINER, __FILE__, __LINE__);
+									#endif
+
+									json_decref (res_p);
+
+								}		/* if (res_p) */
 							else
 								{
-									res = HTTP_INTERNAL_SERVER_ERROR;
+									ap_rprintf (req_p, "Error processing request: %s", error_s);
+									res = HTTP_BAD_REQUEST;
 								}
 
 							#if MOD_GRASSROOTS_DEBUG >= STM_LEVEL_FINER
-							PrintJSONRefCounts (res_p, "pre decref res_p", STM_LEVEL_FINER, __FILE__, __LINE__);
+							PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "json_req_p -> refcount %ld", json_req_p -> refcount);
 							#endif
+							json_decref (json_req_p);
 
-							json_decref (res_p);
+						}		/* if (grassroots_p) */
 
-						}		/* if (res_p) */
-					else
-						{
-							ap_rprintf (req_p, "Error processing request: %s", error_s);
-							res = HTTP_BAD_REQUEST;
-						}
-
-					#if MOD_GRASSROOTS_DEBUG >= STM_LEVEL_FINER
-					PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "json_req_p -> refcount %ld", json_req_p -> refcount);
-					#endif
-					json_decref (json_req_p);
 				}		/* if (json_req_p) */
 			else
 				{
@@ -728,31 +738,43 @@ static apr_status_t CleanUpPool (void *data_p)
 
 
 
-static NamedGrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const location_s)
+static GrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const location_s, ModGrassrootsConfig *config_p)
 {
-	NamedGrassrootsServer *server_p = NULL;
-  int i;
-  const int size = s_servers_p -> nelts;
-
   /*
    * Does it already exist?
    */
-	for (i = 0; i < size; ++ i)
-		{
-			NamedGrassrootsServer *temp_server_p = ((NamedGrassrootsServer **) (s_servers_p -> elts)) [i];
+  GrassrootsServer *grassroots_p = (GrassrootsServer *) apr_hash_get (s_servers_p, location_s, APR_HASH_KEY_STRING);
 
-			if (strcmp ((temp_server_p) -> ngsn_location_s, location_s) == 0)
-				{
-					return temp_server_p;
-				}
-		}
+  if (!grassroots_p)
+  	{
+  		/*
+  		 * It's a new server, so we need to create it
+  		 */
+  		if (config_p -> mgc_root_path_s)
+  			{
+  				JobsManager *jobs_manager_p = NULL;
+  				MEM_FLAG jobs_manager_mem = MF_ALREADY_FREED;
+  				ServersManager *servers_manager_p = NULL;
+  				MEM_FLAG servers_manager_mem = MF_ALREADY_FREED;
+
+  				grassroots_p = AllocateGrassrootsServer (config_p -> mgc_root_path_s, config_p -> mgc_config_s, jobs_manager_p, jobs_manager_mem, servers_manager_p, servers_manager_mem);
+
+  				if (grassroots_p)
+  					{
+  						char *copied_location_s = EasyCopyToNewString (location_s);
+
+  						if (copied_location_s)
+  							{
+  								apr_hash_set (s_servers_p, copied_location_s, APR_HASH_KEY_STRING, grassroots_p);
+  							}
+  					}
+  			}
+
+  	}		/* if (!grassroots_p) */
 
 
-	/*
-	 * It's a new server, so we need to create it
-	 */
 
-	return server_p;
+	return grassroots_p;
 }
 
 
