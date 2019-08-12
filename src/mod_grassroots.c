@@ -59,9 +59,34 @@
 #endif
 
 /**
- *  An array of NamedGrassrootsServers for each Location and Directory directive
+ *  A lookup table where the keys are the paths for each Location and Directory directive
+ *  and the values are the NamedGrassrootsServers associated with these
  */
 static apr_hash_t *s_servers_p = NULL;
+
+/**
+ *  A lookup table of which the Location and Directory paths are the key and
+ *  the values are ModGrassrootsConfig objects
+ */
+static apr_hash_t *s_locations_p = NULL;
+
+
+/** The cache provider to use. */
+static const char *mgc_provider_name_s;
+
+/** The server_rec that the module is running on. */
+static server_rec *mgc_server_p;
+
+/** The JobsManager that the module is using. */
+static APRJobsManager *mgc_jobs_manager_p;
+
+/** The ServersManager that the module is using. */
+static APRServersManager *mgc_servers_manager_p;
+
+
+
+
+
 
 
 /* Define prototypes of our functions in this module */
@@ -102,6 +127,11 @@ static apr_status_t CleanUpServers (void *value_p);
 
 static bool CopyStringValue (apr_pool_t *pool_p, const char *base_src_s, const char *add_src_s, char **dest_ss);
 
+static const char *SetGrassrootsConfigString (cmd_parms *cmd_p, char **store_ss, const char *arg_s);
+
+static bool AddLocationConfig (apr_pool_t *pool_p, const char *location_s, ModGrassrootsConfig *config_p);
+
+
 /*
  * Based on code taken from http://marc.info/?l=apache-modules&m=107669698011831
  * sander@temme.net              http://www.temme.net/sander/
@@ -112,17 +142,6 @@ static apr_status_t CleanUpPool (void *data_p);
 static GrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const location_s, ModGrassrootsConfig *config_p);
 
 
-/** The cache provider to use. */
-const char *mgc_provider_name_s;
-
-/** The server_rec that the module is running on. */
-server_rec *mgc_server_p;
-
-/** The JobsManager that the module is using. */
-APRJobsManager *mgc_jobs_manager_p;
-
-/** The ServersManager that the module is using. */
-APRServersManager *mgc_servers_manager_p;
 static const command_rec s_grassroots_directives [] =
 {
 	AP_INIT_TAKE1 ("GrassrootsCache", SetGrassrootsCacheProvider, NULL, ACCESS_CONF, "The provider for the Jobs Cache"),
@@ -183,7 +202,16 @@ static int GrassrootsPreConfig (apr_pool_t *config_pool_p, apr_pool_t *log_pool_
 
 			if (status == APR_SUCCESS)
 				{
-					res = OK;
+					s_locations_p = apr_hash_make (config_pool_p);
+
+					if (s_locations_p)
+						{
+							res = OK;
+						}
+					else
+						{
+							ap_log_error (APLOG_MARK, APLOG_CRIT, status, NULL, "apr_array_make for s_locations_p failed");
+						}
 				}		/* if (status == APR_SUCCESS) */
 			else
 				{
@@ -315,96 +343,42 @@ static void GrassrootsChildInit (apr_pool_t *pool_p, server_rec *server_p)
 	 * it moved to a new address. */
 	if (InitInformationSystem ())
 		{
-			APRJobsManager *apr_jobs_manager_p = NULL;
-			bool job_manager_flag = false;
 			apr_pool_cleanup_register (pool_p, NULL, CloseInformationSystem, apr_pool_cleanup_null);
 
-			/*
-			 * If we don't have a Grassroots-supplied jobs manager, use an Apache one.
-			 */
-			if (config_p -> mgc_jobs_manager_s)
+
+			OutputStream *log_p = AllocateApacheOutputStream (server_p);
+
+			if (log_p)
 				{
-					job_manager_flag = true;
+					OutputStream *error_p = AllocateApacheOutputStream (server_p);
+
+					SetDefaultLogStream (log_p);
+					apr_pool_cleanup_register (pool_p, log_p, CleanUpOutputStream, apr_pool_cleanup_null);
+
+					if (error_p)
+						{
+							/* Mark the streams for deletion when the server pool expires */
+							SetDefaultErrorStream (error_p);
+							apr_pool_cleanup_register (pool_p, error_p, CleanUpOutputStream, apr_pool_cleanup_null);
+
+							/* Do any clean up required by the running of asynchronous tasks */
+							apr_pool_cleanup_register (pool_p, NULL, CleanUpTasks, apr_pool_cleanup_null);
+
+							s_servers_p = apr_hash_make (pool_p);
+							apr_pool_cleanup_register (pool_p, NULL, CleanUpServers, apr_pool_cleanup_null);
+
+						}
+					else
+						{
+							FreeOutputStream (log_p);
+							ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL , server_p, "AllocateApacheOutputStream for errors failed");
+						}
 				}
 			else
 				{
-					apr_jobs_manager_p = APRJobsManagerChildInit (pool_p, server_p);
-
-					if (apr_jobs_manager_p)
-						{
-							job_manager_flag = true;
-						}
-					else
-						{
-							ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, server_p, "APRJobsManagerChildInit failed");
-						}
+					ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL , server_p, "AllocateApacheOutputStream for log failed");
 				}
 
-			if (job_manager_flag)
-				{
-					APRServersManager *apr_servers_manager_p = NULL;
-					bool servers_manager_flag = false;
-
-					/*
-					 * If we don't have a Grassroots-supplied servers manager, use an Apache one.
-					 */
-					if (config_p -> mgc_servers_manager_s)
-						{
-							servers_manager_flag = true;
-						}
-					else
-						{
-							apr_servers_manager_p = APRServersManagerChildInit (pool_p, server_p);
-
-							if (apr_servers_manager_p)
-								{
-									servers_manager_flag = true;
-								}
-							else
-								{
-									ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, server_p, "APRServersManagerChildInit failed");
-								}
-						}
-
-
-					if (servers_manager_flag)
-						{
-							OutputStream *log_p = AllocateApacheOutputStream (server_p);
-
-							if (log_p)
-								{
-									OutputStream *error_p = AllocateApacheOutputStream (server_p);
-
-									SetDefaultLogStream (log_p);
-									apr_pool_cleanup_register (pool_p, log_p, CleanUpOutputStream, apr_pool_cleanup_null);
-
-									if (error_p)
-										{
-											/* Mark the streams for deletion when the server pool expires */
-											SetDefaultErrorStream (error_p);
-											apr_pool_cleanup_register (pool_p, error_p, CleanUpOutputStream, apr_pool_cleanup_null);
-
-											/* Do any clean up required by the running of asynchronous tasks */
-											apr_pool_cleanup_register (pool_p, NULL, CleanUpTasks, apr_pool_cleanup_null);
-
-											s_servers_p = apr_hash_make (pool_p);
-											apr_pool_cleanup_register (pool_p, NULL, CleanUpServers, apr_pool_cleanup_null);
-
-										}
-									else
-										{
-											FreeOutputStream (log_p);
-											ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL , server_p, "AllocateApacheOutputStream for errors failed");
-										}
-								}
-							else
-								{
-									ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL , server_p, "AllocateApacheOutputStream for log failed");
-								}
-
-						}		/* if (servers_manager_flag) */
-
-				}		/* if (job_manager_flag) */
 
 		}		/* If (InitInformationSystem ()) */
 	else
@@ -459,6 +433,8 @@ static int GrassrootsPostConfig (apr_pool_t *config_pool_p, apr_pool_t *log_p, a
   		if (config_p -> mgc_provider_name_s)
   			{
   				ret = OK;
+
+
 
   				/*
   	  		config_p -> mgc_jobs_manager_p = InitAPRJobsManager (server_p, pool_p, config_p -> mgc_provider_name_s);
@@ -521,29 +497,9 @@ static apr_status_t CleanUpOutputStream (void *value_p)
 /* Handler for the "GrassrootsRoot" directive */
 static const char *SetGrassrootsRootPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s)
 {
-	const char *error_s = NULL;
 	ModGrassrootsConfig *config_p = (ModGrassrootsConfig *) cfg_p;
 
-	if (arg_s)
-		{
-			config_p -> mgc_root_path_s = apr_pstrdup (cmd_p -> pool, arg_s);
-
-			if (config_p -> mgc_root_path_s)
-				{
-				}
-		}
-	else
-		{
-			config_p -> mgc_root_path_s = NULL;
-		}
-
-
-	if (!error_s)
-		{
-			SetServerRootDirectory (arg_s);
-		}
-
-	return NULL;
+	return SetGrassrootsConfigString (cmd_p, & (config_p -> mgc_root_path_s), arg_s);
 }
 
 
@@ -617,6 +573,28 @@ static const char *SetGrassrootsServersManager (cmd_parms *cmd_p, void *cfg_p, c
 {
 	ModGrassrootsConfig *config_p = (ModGrassrootsConfig *) cfg_p;
 
+	return SetGrassrootsConfigString (cmd_p, & (config_p -> mgc_servers_manager_s), arg_s);
+}
+
+
+static const char *SetGrassrootsConfigString (cmd_parms *cmd_p, char **store_ss, const char *arg_s)
+{
+	if (arg_s)
+		{
+			apr_pool_t *pool_p = cmd_p -> pool;
+			*store_ss = apr_pstrdup (pool_p, arg_s);
+
+			if (*store_ss)
+				{
+					AddLocation (cmd_p -> pool, arg_s);
+				}
+		}
+	else
+		{
+			*store_ss = NULL;
+		}
+
+
 	return NULL;
 }
 
@@ -626,7 +604,34 @@ static const char *SetGrassrootsJobsManager (cmd_parms *cmd_p, void *cfg_p, cons
 {
 	ModGrassrootsConfig *config_p = (ModGrassrootsConfig *) cfg_p;
 
-	return NULL;
+	return SetGrassrootsConfigString (cmd_p, & (config_p -> mgc_jobs_manager_s), arg_s);
+}
+
+
+
+static bool AddLocationConfig (apr_pool_t *pool_p, const char *location_s, ModGrassrootsConfig *config_p)
+{
+	bool success_flag = false;
+
+	/*
+	 * Does the location already exist?
+	 */
+	if (apr_hash_get (s_locations_p, location_s, APR_HASH_KEY_STRING))
+		{
+			success_flag = true;
+		}
+	else
+		{
+			char *value_s = apr_pstrdup (pool_p, location_s);
+
+			if (value_s)
+				{
+					apr_hash_set (s_locations_p, value_s, APR_HASH_KEY_STRING, config_p);
+					success_flag = true;
+				}
+		}
+
+	return success_flag;
 }
 
 
