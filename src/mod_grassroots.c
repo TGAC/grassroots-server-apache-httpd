@@ -45,7 +45,6 @@
 
 #include "grassroots_server.h"
 #include "jansson.h"
-#include "service_config.h"
 #include "system_util.h"
 #include "streams.h"
 #include "util_mutex.h"
@@ -112,7 +111,8 @@ static void *MergeDirectoryConfig (apr_pool_t *pool_p, void *base_config_p, void
 
 static void *MergeConfigs (apr_pool_t *pool_p, void *base_p, void *new_p);
 
-static ModGrassrootsConfig *CreateConfig (apr_pool_t *pool_p, server_rec *server_p);
+
+static ModGrassrootsConfig *CreateConfig (apr_pool_t *pool_p, server_rec *server_p, const char *context_s);
 
 static apr_status_t CloseInformationSystem (void *data_p);
 
@@ -127,7 +127,9 @@ static apr_status_t CleanUpServers (void *value_p);
 
 static bool CopyStringValue (apr_pool_t *pool_p, const char *base_src_s, const char *add_src_s, char **dest_ss);
 
-static const char *SetGrassrootsConfigString (cmd_parms *cmd_p, char **store_ss, const char *arg_s);
+
+static const char *SetGrassrootsConfigString (cmd_parms *cmd_p, char **store_ss, const char *arg_s, ModGrassrootsConfig *config_p);
+
 
 static bool AddLocationConfig (apr_pool_t *pool_p, const char *location_s, ModGrassrootsConfig *config_p);
 
@@ -230,22 +232,37 @@ static int GrassrootsPreConfig (apr_pool_t *config_pool_p, apr_pool_t *log_pool_
 
 static void *CreateServerConfig (apr_pool_t *pool_p, server_rec *server_p)
 {
-	return ((void *) CreateConfig (pool_p, server_p));
+	return ((void *) CreateConfig (pool_p, server_p, NULL));
 }
 
 
 static void *CreateDirectoryConfig (apr_pool_t *pool_p, char *context_s)
 {
-	return ((void *) CreateConfig (pool_p, NULL));
+	return ((void *) CreateConfig (pool_p, NULL, context_s));
 }
 
 
-static ModGrassrootsConfig *CreateConfig (apr_pool_t *pool_p, server_rec *server_p)
+static ModGrassrootsConfig *CreateConfig (apr_pool_t *pool_p, server_rec *server_p, const char *context_s)
 {
-	ModGrassrootsConfig *config_p = apr_palloc (pool_p, sizeof (ModGrassrootsConfig));
+	char *copied_context_s = NULL;
+	ModGrassrootsConfig *config_p = NULL;
+
+	if (context_s)
+		{
+			copied_context_s = apr_pstrdup (pool_p, context_s);
+
+			if (!copied_context_s)
+				{
+					ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to copy context value \"%s\"", context_s);
+					return NULL;
+				}
+		}
+
+	config_p = apr_palloc (pool_p, sizeof (ModGrassrootsConfig));
 
 	if (config_p)
 		{
+			config_p -> mgc_context_s = copied_context_s;
 			config_p -> mgc_root_path_s = NULL;
 			config_p -> mgc_provider_name_s = "shmcb";
 			config_p -> mgc_jobs_manager_s = NULL;
@@ -391,7 +408,7 @@ static void GrassrootsChildInit (apr_pool_t *pool_p, server_rec *server_p)
 
 static apr_status_t ClearServerResources (void *value_p)
 {
-	FreeServerResources ();
+	//FreeServerResources ();
 
 	return APR_SUCCESS;
 }
@@ -499,7 +516,7 @@ static const char *SetGrassrootsRootPath (cmd_parms *cmd_p, void *cfg_p, const c
 {
 	ModGrassrootsConfig *config_p = (ModGrassrootsConfig *) cfg_p;
 
-	return SetGrassrootsConfigString (cmd_p, & (config_p -> mgc_root_path_s), arg_s);
+	return SetGrassrootsConfigString (cmd_p, & (config_p -> mgc_root_path_s), arg_s, config_p);
 }
 
 
@@ -573,11 +590,11 @@ static const char *SetGrassrootsServersManager (cmd_parms *cmd_p, void *cfg_p, c
 {
 	ModGrassrootsConfig *config_p = (ModGrassrootsConfig *) cfg_p;
 
-	return SetGrassrootsConfigString (cmd_p, & (config_p -> mgc_servers_manager_s), arg_s);
+	return SetGrassrootsConfigString (cmd_p, & (config_p -> mgc_servers_manager_s), arg_s, config_p);
 }
 
 
-static const char *SetGrassrootsConfigString (cmd_parms *cmd_p, char **store_ss, const char *arg_s)
+static const char *SetGrassrootsConfigString (cmd_parms *cmd_p, char **store_ss, const char *arg_s, ModGrassrootsConfig *config_p)
 {
 	if (arg_s)
 		{
@@ -586,14 +603,17 @@ static const char *SetGrassrootsConfigString (cmd_parms *cmd_p, char **store_ss,
 
 			if (*store_ss)
 				{
-					AddLocation (cmd_p -> pool, arg_s);
+					if (config_p -> mgc_context_s)
+						{
+							AddLocationConfig (pool_p, config_p -> mgc_context_s, config_p);
+						}
+
 				}
 		}
 	else
 		{
 			*store_ss = NULL;
 		}
-
 
 	return NULL;
 }
@@ -604,7 +624,7 @@ static const char *SetGrassrootsJobsManager (cmd_parms *cmd_p, void *cfg_p, cons
 {
 	ModGrassrootsConfig *config_p = (ModGrassrootsConfig *) cfg_p;
 
-	return SetGrassrootsConfigString (cmd_p, & (config_p -> mgc_jobs_manager_s), arg_s);
+	return SetGrassrootsConfigString (cmd_p, & (config_p -> mgc_jobs_manager_s), arg_s, config_p);
 }
 
 
@@ -630,6 +650,7 @@ static bool AddLocationConfig (apr_pool_t *pool_p, const char *location_s, ModGr
 					success_flag = true;
 				}
 		}
+
 
 	return success_flag;
 }

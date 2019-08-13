@@ -93,6 +93,12 @@ typedef struct APRServersManager
  */
 typedef struct
 {
+	/**
+	 * For Location and Directory configs, this will be their value.
+	 * For Serevr-wide configs, this will be NULL.
+	 */
+	char *mgc_context_s;
+
 	/** The path to the Grassroots installation */
 	char *mgc_root_path_s;
 
