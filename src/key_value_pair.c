@@ -325,11 +325,14 @@ static int AddParamsToJSON (void *rec_p, const char *key_s, const char *value_s)
 				{
 					if (SetJSONString (param_p, PARAM_CURRENT_VALUE_S, value_s))
 						{
-							json_t *params_p = (json_t *) rec_p;
-
-							if (json_array_append_new (params_p, param_p) == 0)
+							if (SetJSONBoolean (param_p, PARAM_VALUE_SET_FROM_TEXT_S, true))
 								{
-									return 1;
+									json_t *params_p = (json_t *) rec_p;
+
+									if (json_array_append_new (params_p, param_p) == 0)
+										{
+											return 1;
+										}
 								}
 						}
 				}
