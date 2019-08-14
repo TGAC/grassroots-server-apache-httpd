@@ -24,7 +24,7 @@
 #include "httpd.h"
 #include "jansson.h"
 #include "byte_buffer.h"
-
+#include "string_utils.h"
 
 
 typedef struct KeyValuePair

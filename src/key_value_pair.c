@@ -151,15 +151,16 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p)
 		{
 			const char *SERVICE_S = "/service/";
 			const char *OPERATION_S = "/operation/";
-			size_t l;
+			const char *api_s = Strrstr (path_s, SERVICE_S);
 
-			if (strncmp (path_s, SERVICE_S, (l = strlen (SERVICE_S))) == 0)
+
+			if (api_s)
 				{
 					json_t *service_req_p = json_object ();
 
 					if (service_req_p)
 						{
-							const char *service_name_s = path_s + l;
+							const char *service_name_s = api_s + strlen (SERVICE_S);
 
 							if (SetJSONString (service_req_p, SERVICE_NAME_S, service_name_s))
 								{
@@ -226,7 +227,7 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p)
 						}		/* if (service_req_p) */
 
 				}		/* if (strncmp (path_s, SERVICE_S, l) == 0) */
-			else if (strncmp (path_s, OPERATION_S, (l = strlen (OPERATION_S))) == 0)
+			else if ((api_s = Strrstr (path_s, OPERATION_S)) != NULL)
 				{
 					json_t *json_req_p = NULL;
 					SchemaVersion *sv_p = AllocateSchemaVersion (CURRENT_SCHEMA_VERSION_MAJOR, CURRENT_SCHEMA_VERSION_MINOR);
@@ -235,9 +236,9 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p)
 						{
 							Operation op;
 
-							path_s += l;
+							api_s += strlen (OPERATION_S);
 
-							op = GetOperationFromString (path_s);
+							op = GetOperationFromString (api_s);
 
 							switch (op)
 								{
