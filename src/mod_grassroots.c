@@ -267,6 +267,7 @@ static ModGrassrootsConfig *CreateConfig (apr_pool_t *pool_p, server_rec *server
 			config_p -> mgc_provider_name_s = "shmcb";
 			config_p -> mgc_jobs_manager_s = NULL;
 			config_p -> mgc_servers_manager_s = NULL;
+			config_p -> mgc_config_s = NULL;
 		}
 
 	return config_p;
