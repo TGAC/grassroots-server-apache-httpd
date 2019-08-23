@@ -100,6 +100,7 @@ static const char *SetGrassrootsRootPath (cmd_parms *cmd_p, void *cfg_p, const c
 static const char *SetGrassrootsCacheProvider (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
 static const char *SetGrassrootsServersManager (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
 static const char *SetGrassrootsJobsManager (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
+static const char *SetGrassrootsConfigFilename (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
 
 static void *CreateServerConfig (apr_pool_t *pool_p, server_rec *server_p);
 
@@ -147,9 +148,11 @@ static GrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const lo
 static const command_rec s_grassroots_directives [] =
 {
 	AP_INIT_TAKE1 ("GrassrootsCache", SetGrassrootsCacheProvider, NULL, ACCESS_CONF, "The provider for the Jobs Cache"),
+	AP_INIT_TAKE1 ("GrassrootsConfig", SetGrassrootsConfigFilename, NULL, ACCESS_CONF, "The config file to use for this Grassroots Server"),
 	AP_INIT_TAKE1 ("GrassrootsRoot", SetGrassrootsRootPath, NULL, ACCESS_CONF, "The path to the Grassroots installation"),
 	AP_INIT_TAKE1 ("GrassrootsServersManager", SetGrassrootsServersManager, NULL, ACCESS_CONF, "The path to the Grassroots Servers Manager Module to use"),
 	AP_INIT_TAKE1 ("GrassrootsJobManager", SetGrassrootsJobsManager, NULL, ACCESS_CONF, "The path to the Grassroots Jobs Manager Module to use"),
+
 	{ NULL }
 };
 
@@ -324,12 +327,18 @@ static void *MergeConfigs (apr_pool_t *pool_p, void *base_p, void *new_p)
 		{
 			if (CopyStringValue (pool_p, base_config_p -> mgc_root_path_s, new_config_p -> mgc_root_path_s, & (merged_config_p -> mgc_root_path_s)))
 				{
-					if (CopyStringValue (pool_p, base_config_p -> mgc_provider_name_s, new_config_p -> mgc_provider_name_s, & (merged_config_p -> mgc_provider_name_s)))
+					if (CopyStringValue (pool_p, base_config_p -> mgc_config_s, new_config_p -> mgc_config_s, & (merged_config_p -> mgc_config_s)))
 						{
-							if (CopyStringValue (pool_p, base_config_p -> mgc_jobs_manager_s, new_config_p -> mgc_jobs_manager_s, & (merged_config_p -> mgc_jobs_manager_s)))
+							if (CopyStringValue (pool_p, base_config_p -> mgc_context_s, new_config_p -> mgc_context_s, & (merged_config_p -> mgc_context_s)))
 								{
-									if (CopyStringValue (pool_p, base_config_p -> mgc_servers_manager_s, new_config_p -> mgc_servers_manager_s, & (merged_config_p -> mgc_servers_manager_s)))
+									if (CopyStringValue (pool_p, base_config_p -> mgc_provider_name_s, new_config_p -> mgc_provider_name_s, & (merged_config_p -> mgc_provider_name_s)))
 										{
+											if (CopyStringValue (pool_p, base_config_p -> mgc_jobs_manager_s, new_config_p -> mgc_jobs_manager_s, & (merged_config_p -> mgc_jobs_manager_s)))
+												{
+													if (CopyStringValue (pool_p, base_config_p -> mgc_servers_manager_s, new_config_p -> mgc_servers_manager_s, & (merged_config_p -> mgc_servers_manager_s)))
+														{
+														}
+												}
 										}
 								}
 						}
@@ -518,6 +527,15 @@ static const char *SetGrassrootsRootPath (cmd_parms *cmd_p, void *cfg_p, const c
 	ModGrassrootsConfig *config_p = (ModGrassrootsConfig *) cfg_p;
 
 	return SetGrassrootsConfigString (cmd_p, & (config_p -> mgc_root_path_s), arg_s, config_p);
+}
+
+
+/* Handler for the "GrassrootsRoot" directive */
+static const char *SetGrassrootsConfigFilename (cmd_parms *cmd_p, void *cfg_p, const char *arg_s)
+{
+	ModGrassrootsConfig *config_p = (ModGrassrootsConfig *) cfg_p;
+
+	return SetGrassrootsConfigString (cmd_p, & (config_p -> mgc_config_s), arg_s, config_p);
 }
 
 
