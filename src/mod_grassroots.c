@@ -135,6 +135,10 @@ static const char *SetGrassrootsConfigString (cmd_parms *cmd_p, char **store_ss,
 static bool AddLocationConfig (apr_pool_t *pool_p, const char *location_s, ModGrassrootsConfig *config_p);
 
 
+
+static int ProcessLocationsHashEntry (void *data_p, const void *key_p, apr_ssize_t key_length, const void *value_p);
+
+
 /*
  * Based on code taken from http://marc.info/?l=apache-modules&m=107669698011831
  * sander@temme.net              http://www.temme.net/sander/
@@ -394,6 +398,16 @@ static void GrassrootsChildInit (apr_pool_t *pool_p, server_rec *server_p)
 							s_servers_p = apr_hash_make (pool_p);
 							apr_pool_cleanup_register (pool_p, NULL, CleanUpServers, apr_pool_cleanup_null);
 
+
+		  				/*
+		  				 * We should now have a set of all of the required locations that will each need
+		  				 * an individual GrassrootsServer instance.
+		  				 */
+		  				if (!apr_hash_do (ProcessLocationsHashEntry, server_p, s_locations_p) == TRUE)
+		  					{
+		  						ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, server_p, "Failed to create all grassroots servers");
+		  					}
+
 						}
 					else
 						{
@@ -459,10 +473,9 @@ static int GrassrootsPostConfig (apr_pool_t *config_pool_p, apr_pool_t *log_p, a
 
   		if (config_p -> mgc_provider_name_s)
   			{
+
+
   				ret = OK;
-
-
-
   				/*
   	  		config_p -> mgc_jobs_manager_p = InitAPRJobsManager (server_p, pool_p, config_p -> mgc_provider_name_s);
 
@@ -709,7 +722,7 @@ static int GrassrootsHandler (request_rec *req_p)
   			{
 					ModGrassrootsConfig *config_p = ap_get_module_config (req_p -> per_dir_config, &grassroots_module);
 					const char *error_s = NULL;
-					GrassrootsServer *grassroots_p = GetOrCreateNamedGrassrootsServer (req_p -> uri, config_p);
+					GrassrootsServer *grassroots_p = apr_hash_get (s_servers_p, req_p -> uri, APR_HASH_KEY_STRING);
 
 					if (grassroots_p)
 						{
@@ -818,9 +831,28 @@ static GrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const lo
 
   	}		/* if (!grassroots_p) */
 
-
-
 	return grassroots_p;
+}
+
+
+static int ProcessLocationsHashEntry (void *data_p, const void *key_p, apr_ssize_t key_length, const void *value_p)
+{
+	int res = 0;
+	server_rec *server_p = (server_rec *) data_p;
+	const char *location_s = (const char *) key_p;
+	ModGrassrootsConfig *config_p = (ModGrassrootsConfig *) value_p;
+	GrassrootsServer *grassroots_p = GetOrCreateNamedGrassrootsServer (location_s, config_p);
+
+	if (grassroots_p)
+		{
+			res = 1;
+		}
+	else
+		{
+			ap_log_error (APLOG_MARK, APLOG_CRIT, res, server_p, "Failed to create a Grassroots Server instance for \"%s\"", location_s);
+		}
+
+	return res;
 }
 
 
