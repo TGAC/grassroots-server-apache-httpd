@@ -50,7 +50,7 @@ extern "C"
  *
  * @ingroup httpd_server
  */
-json_t *GetRequestParamsAsJSON (request_rec *req_p);
+json_t *GetRequestParamsAsJSON (request_rec *req_p, char **grassroots_uri_ss);
 
 
 /**

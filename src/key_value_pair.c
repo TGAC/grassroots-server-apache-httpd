@@ -87,6 +87,11 @@ static int ReadRequestBody (request_rec *req_p, ByteBuffer *buffer_p);
 static int AddParamsToJSON (void *rec_p, const char *key_s, const char *value_s);
 
 
+static json_t *GetServiceRequestFromURI (const char *service_name_s, apr_table_t *params_table_p);
+
+static json_t *GetOperationRequestFromURI (const char *operation_s, apr_table_t *params_table_p);
+
+
 /**********************************/
 /********** API METHODS ***********/
 /**********************************/
@@ -134,8 +139,9 @@ json_t *GetRequestBodyAsJSON (request_rec *req_p)
 }
 
 
-json_t *GetRequestParamsAsJSON (request_rec *req_p)
+json_t *GetRequestParamsAsJSON (request_rec *req_p, char **grassroots_uri_ss)
 {
+	json_t *json_req_p = NULL;
 	apr_table_t *params_table_p = NULL;
 	const char *path_s = req_p -> path_info;
 
@@ -153,159 +159,48 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p)
 			const char *OPERATION_S = "/operation/";
 			const char *api_s = Strrstr (path_s, SERVICE_S);
 
-
 			if (api_s)
 				{
-					json_t *service_req_p = json_object ();
+					const char *service_s = api_s + strlen (SERVICE_S);
 
-					if (service_req_p)
+					json_req_p = GetServiceRequestFromURI (service_s, params_table_p);
+
+					if (!json_req_p)
 						{
-							const char *service_name_s = api_s + strlen (SERVICE_S);
+							PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "GetServiceRequestFromURI failed for \"%s\"", path_s);
+						}
 
-							if (SetJSONString (service_req_p, SERVICE_NAME_S, service_name_s))
-								{
-									if (SetJSONBoolean (service_req_p, SERVICE_RUN_S, true))
-										{
-											json_t *parameter_set_json_p = json_object ();
-
-											if (parameter_set_json_p)
-												{
-													if (json_object_set_new (service_req_p, PARAM_SET_KEY_S, parameter_set_json_p) == 0)
-														{
-															json_t *params_json_p = json_array ();
-
-															if (params_json_p)
-																{
-																	if (json_object_set_new (parameter_set_json_p, PARAM_SET_PARAMS_S, params_json_p) == 0)
-																		{
-																			int res = apr_table_do (AddParamsToJSON, params_json_p, params_table_p, NULL);
-
-																			if (res == TRUE)
-																				{
-																					json_t *root_p = json_object ();
-
-																					if (root_p)
-																						{
-																							json_t *array_p = json_array ();
-
-																							if (array_p)
-																								{
-																									if (json_object_set_new (root_p, SERVICES_NAME_S, array_p) == 0)
-																										{
-																											if (json_array_append_new (array_p, service_req_p) == 0)
-																												{
-																													return root_p;
-																												}
-																										}
-																									else
-																										{
-																											json_decref (array_p);
-																										}
-																								}
-
-																							json_decref (root_p);
-																						}
-																				}
-																		}
-																	else
-																		{
-																			json_decref (params_json_p);
-																		}
-																}
-														}
-													else
-														{
-															json_decref (parameter_set_json_p);
-														}
-												}
-
-										}		/* if (SetJSONBoolean (service_req_p, SERVICE_RUN_S, true)) */
-
-								}		/* if (SetJSONString (service_req_p, SERVICE_NAME_S, service_name_s)) */
-
-							json_decref (service_req_p);
-						}		/* if (service_req_p) */
 
 				}		/* if (strncmp (path_s, SERVICE_S, l) == 0) */
 			else if ((api_s = Strrstr (path_s, OPERATION_S)) != NULL)
 				{
-					json_t *json_req_p = NULL;
-					SchemaVersion *sv_p = AllocateSchemaVersion (CURRENT_SCHEMA_VERSION_MAJOR, CURRENT_SCHEMA_VERSION_MINOR);
+					const char *operation_s = api_s + strlen (OPERATION_S);
 
-					if (sv_p)
+					json_req_p = GetOperationRequestFromURI (operation_s, params_table_p);
+
+					if (!json_req_p)
 						{
-							Operation op;
-
-							api_s += strlen (OPERATION_S);
-
-							op = GetOperationFromString (api_s);
-
-							switch (op)
-								{
-									case OP_LIST_ALL_SERVICES:
-										json_req_p = GetOperationAsJSON (op, sv_p);
-										break;
-
-									case OP_GET_SERVICE_INFO:
-										{
-											const char *service_name_s = apr_table_get (params_table_p, SERVICE_NAME_S);
-
-											if (service_name_s)
-												{
-													json_t *service_names_p = json_array ();
-
-													if (service_names_p)
-														{
-															json_t *service_name_json_p = json_string (service_name_s);
-
-															if (service_name_json_p)
-																{
-																	if (json_array_append_new (service_names_p, service_name_json_p) == 0)
-																		{
-																			json_req_p = GetServicesRequest (NULL, op, SERVICE_NAME_S, service_names_p, sv_p);
-
-																			if (json_req_p)
-																				{
-
-																				}
-																		}
-																	else
-																		{
-																			json_decref (service_name_json_p);
-																		}
-																}
-
-															if (!json_req_p)
-																{
-																	json_decref (service_names_p);
-																}
-														}
+							PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "GetOperationRequestFromURI failed for \"%s\"", path_s);
+						}
+				}
 
 
-												}
+			if (json_req_p)
+				{
+					char *root_uri_s = apr_pstrndup (req_p -> pool, req_p -> uri, strlen (req_p -> uri) - strlen (path_s));
 
-										}
-										break;
-
-									case OP_NONE:
-										break;
-
-									default:
-										break;
-								}
-
-							FreeSchemaVersion (sv_p);
+					if (root_uri_s)
+						{
+							*grassroots_uri_ss = root_uri_s;
 						}
 					else
 						{
-							PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "AllocateSchemaVersion failed for %s", req_p -> path_info);
+							PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to copy first " SIZET_FMT " chars from \"%s\"", api_s - path_s, path_s);
 						}
-
-					return json_req_p;
 				}
 		}
 
-	return NULL;
+	return json_req_p;
 }
 
 
@@ -707,4 +602,153 @@ int ReadBody (request_rec *req_p, ByteBuffer *buffer_p)
 	return ret;
 }
 
+
+static json_t *GetServiceRequestFromURI (const char *service_name_s, apr_table_t *params_table_p)
+{
+	json_t *service_req_p = json_object ();
+
+	if (service_req_p)
+		{
+			if (SetJSONString (service_req_p, SERVICE_NAME_S, service_name_s))
+				{
+					if (SetJSONBoolean (service_req_p, SERVICE_RUN_S, true))
+						{
+							json_t *parameter_set_json_p = json_object ();
+
+							if (parameter_set_json_p)
+								{
+									if (json_object_set_new (service_req_p, PARAM_SET_KEY_S, parameter_set_json_p) == 0)
+										{
+											json_t *params_json_p = json_array ();
+
+											if (params_json_p)
+												{
+													if (json_object_set_new (parameter_set_json_p, PARAM_SET_PARAMS_S, params_json_p) == 0)
+														{
+															int res = apr_table_do (AddParamsToJSON, params_json_p, params_table_p, NULL);
+
+															if (res == TRUE)
+																{
+																	json_t *root_p = json_object ();
+
+																	if (root_p)
+																		{
+																			json_t *array_p = json_array ();
+
+																			if (array_p)
+																				{
+																					if (json_object_set_new (root_p, SERVICES_NAME_S, array_p) == 0)
+																						{
+																							if (json_array_append_new (array_p, service_req_p) == 0)
+																								{
+																									return root_p;
+																								}
+																						}
+																					else
+																						{
+																							json_decref (array_p);
+																						}
+																				}
+
+																			json_decref (root_p);
+																		}
+																}
+														}
+													else
+														{
+															json_decref (params_json_p);
+														}
+												}
+										}
+									else
+										{
+											json_decref (parameter_set_json_p);
+										}
+								}
+
+						}		/* if (SetJSONBoolean (service_req_p, SERVICE_RUN_S, true)) */
+
+				}		/* if (SetJSONString (service_req_p, SERVICE_NAME_S, service_name_s)) */
+
+			json_decref (service_req_p);
+		}		/* if (service_req_p) */
+
+	return NULL;
+}
+
+
+static json_t *GetOperationRequestFromURI (const char *operation_s, apr_table_t *params_table_p)
+{
+	json_t *json_req_p = NULL;
+	SchemaVersion *sv_p = AllocateSchemaVersion (CURRENT_SCHEMA_VERSION_MAJOR, CURRENT_SCHEMA_VERSION_MINOR);
+
+	if (sv_p)
+		{
+			Operation op;
+
+			op = GetOperationFromString (operation_s);
+
+			switch (op)
+				{
+					case OP_LIST_ALL_SERVICES:
+						json_req_p = GetOperationAsJSON (op, sv_p);
+						break;
+
+					case OP_GET_SERVICE_INFO:
+						{
+							const char *service_name_s = apr_table_get (params_table_p, SERVICE_NAME_S);
+
+							if (service_name_s)
+								{
+									json_t *service_names_p = json_array ();
+
+									if (service_names_p)
+										{
+											json_t *service_name_json_p = json_string (service_name_s);
+
+											if (service_name_json_p)
+												{
+													if (json_array_append_new (service_names_p, service_name_json_p) == 0)
+														{
+															json_req_p = GetServicesRequest (NULL, op, SERVICES_NAME_S, service_names_p, sv_p);
+
+															if (json_req_p)
+																{
+
+																}
+														}
+													else
+														{
+															json_decref (service_name_json_p);
+														}
+												}
+
+											if (!json_req_p)
+												{
+													json_decref (service_names_p);
+												}
+										}
+
+
+								}
+
+						}
+						break;
+
+					case OP_NONE:
+						break;
+
+					default:
+						break;
+				}
+
+			FreeSchemaVersion (sv_p);
+		}
+	else
+		{
+			PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "AllocateSchemaVersion failed");
+		}
+
+	return json_req_p;
+}
 

@@ -403,7 +403,7 @@ static void GrassrootsChildInit (apr_pool_t *pool_p, server_rec *server_p)
 		  				 * We should now have a set of all of the required locations that will each need
 		  				 * an individual GrassrootsServer instance.
 		  				 */
-		  				if (!apr_hash_do (ProcessLocationsHashEntry, server_p, s_locations_p) == TRUE)
+		  				if (apr_hash_do (ProcessLocationsHashEntry, server_p, s_locations_p) != TRUE)
 		  					{
 		  						ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, server_p, "Failed to create all grassroots servers");
 		  					}
@@ -702,15 +702,17 @@ static int GrassrootsHandler (request_rec *req_p)
   if ((req_p -> handler) && (strcmp (req_p -> handler, "grassroots-handler") == 0))
   	{
   		json_t *json_req_p = NULL;
+  		char *grassroots_uri_s = NULL;
 
   		switch (req_p -> method_number)
 				{
   				case M_POST:
   					json_req_p = GetRequestBodyAsJSON (req_p);
+  					grassroots_uri_s = req_p -> uri;
   					break;
 
   				case M_GET:
-  					json_req_p = GetRequestParamsAsJSON (req_p);
+  					json_req_p = GetRequestParamsAsJSON (req_p, &grassroots_uri_s);
   					break;
 
   				default:
@@ -718,14 +720,14 @@ static int GrassrootsHandler (request_rec *req_p)
   					break;
 				}
 
-  		if (json_req_p)
+  		if (json_req_p && grassroots_uri_s)
   			{
 					ModGrassrootsConfig *config_p = ap_get_module_config (req_p -> per_dir_config, &grassroots_module);
-					const char *error_s = NULL;
-					GrassrootsServer *grassroots_p = apr_hash_get (s_servers_p, req_p -> uri, APR_HASH_KEY_STRING);
+					GrassrootsServer *grassroots_p = apr_hash_get (s_servers_p, grassroots_uri_s, APR_HASH_KEY_STRING);
 
 					if (grassroots_p)
 						{
+							const char *error_s = NULL;
 							json_t *res_p = ProcessServerJSONMessage (grassroots_p, json_req_p, &error_s);
 
 							if (res_p)
