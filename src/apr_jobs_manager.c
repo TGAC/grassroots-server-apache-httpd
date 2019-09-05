@@ -180,8 +180,8 @@ bool PostConfigAPRJobsManager (APRJobsManager *manager_p, apr_pool_t *config_poo
 
 APRJobsManager *APRJobsManagerChildInit (apr_pool_t *pool_p, server_rec *server_p)
 {
-	ModGrassrootsConfig *config_p = ap_get_module_config (server_p -> module_config, GetGrassrootsModule ());
-	APRJobsManager *manager_p = InitAPRJobsManager (server_p, pool_p, config_p -> mgc_provider_name_s);
+	GrassrootsLocationConfig *config_p = ap_get_module_config (server_p -> module_config, GetGrassrootsModule ());
+	APRJobsManager *manager_p = InitAPRJobsManager (server_p, pool_p, config_p -> glc_provider_name_s);
 
 	if (manager_p)
 		{

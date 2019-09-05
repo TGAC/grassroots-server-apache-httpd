@@ -97,28 +97,44 @@ typedef struct
 	 * For Location and Directory configs, this will be their value.
 	 * For Serevr-wide configs, this will be NULL.
 	 */
-	char *mgc_context_s;
+	char *glc_context_s;
 
 	/** The path to the Grassroots installation */
-	char *mgc_root_path_s;
+	char *glc_root_path_s;
 
 	/** The cache provider to use. */
-	char *mgc_provider_name_s;
+	char *glc_provider_name_s;
 
 	/** The JobsManager that the module is using. */
-	char *mgc_jobs_manager_s;
+	char *glc_jobs_manager_s;
 
 	/** The ServersManager that the module is using. */
-	char *mgc_servers_manager_s;
+	char *glc_servers_manager_s;
 
 	/**
 	 * The config filename that the GrassrootsServer should use.
 	 * If this is <code>NULL</code> then the default of
 	 * "grassroots.config" will be used.
 	 */
-	char *mgc_config_s;
+	char *glc_config_s;
 
-} ModGrassrootsConfig;
+	/**
+	 * The path to the folder containing the service config files.
+	 * If this is <code>NULL</code> then the default of
+	 * "config" will be used.
+	 */
+	char *glc_services_config_path_s;
+
+
+	/**
+	 *  A lookup table where the keys are the paths for each Location and Directory directive
+	 *  and the values are the NamedGrassrootsServers associated with these
+	 */
+	apr_hash_t *glc_servers_p;
+
+	server_rec *glc_server_p;
+
+} GrassrootsLocationConfig;
 
 
 #ifdef __cplusplus
