@@ -60,24 +60,7 @@
 
 
 
-apr_hash_t *s_locations_p;
-
-/** The cache provider to use. */
-static const char *glc_provider_name_s;
-
-/** The server_rec that the module is running on. */
-static server_rec *glc_server_p;
-
-/** The JobsManager that the module is using. */
-static APRJobsManager *glc_jobs_manager_p;
-
-/** The ServersManager that the module is using. */
-static APRServersManager *glc_servers_manager_p;
-
-
-
-
-
+static apr_hash_t *s_locations_p;
 
 
 /* Define prototypes of our functions in this module */
@@ -148,7 +131,7 @@ static const command_rec s_grassroots_directives [] =
 {
 	AP_INIT_TAKE1 ("GrassrootsCache", SetGrassrootsCacheProvider, NULL, ACCESS_CONF, "The provider for the Jobs Cache"),
 	AP_INIT_TAKE1 ("GrassrootsConfig", SetGrassrootsConfigFilename, NULL, ACCESS_CONF, "The config file to use for this Grassroots Server"),
-	AP_INIT_TAKE1 ("GrassrootsConfig", SetGrassrootsServiceConfigPath, NULL, ACCESS_CONF, "The path to the individual services config files"),
+	AP_INIT_TAKE1 ("GrassrootsServicesConfigPath", SetGrassrootsServiceConfigPath, NULL, ACCESS_CONF, "The path to the individual services config files"),
 	AP_INIT_TAKE1 ("GrassrootsRoot", SetGrassrootsRootPath, NULL, ACCESS_CONF, "The path to the Grassroots installation"),
 	AP_INIT_TAKE1 ("GrassrootsServersManager", SetGrassrootsServersManager, NULL, ACCESS_CONF, "The path to the Grassroots Servers Manager Module to use"),
 	AP_INIT_TAKE1 ("GrassrootsJobManager", SetGrassrootsJobsManager, NULL, ACCESS_CONF, "The path to the Grassroots Jobs Manager Module to use"),
@@ -335,7 +318,8 @@ static void *MergeConfigs (apr_pool_t *pool_p, void *base_p, void *new_p)
 {
 	GrassrootsLocationConfig *base_config_p = (GrassrootsLocationConfig *) base_p;
 	GrassrootsLocationConfig *new_config_p = (GrassrootsLocationConfig *) new_p;
-	GrassrootsLocationConfig *merged_config_p = (GrassrootsLocationConfig *) CreateDirectoryConfig (pool_p, NULL);
+	const char *context_s = new_config_p -> glc_context_s ? new_config_p -> glc_context_s : base_config_p -> glc_context_s;
+	GrassrootsLocationConfig *merged_config_p = (GrassrootsLocationConfig *) CreateDirectoryConfig (pool_p, context_s);
 
 	if (merged_config_p)
 		{
@@ -351,19 +335,64 @@ static void *MergeConfigs (apr_pool_t *pool_p, void *base_p, void *new_p)
 												{
 													if (CopyStringValue (pool_p, base_config_p -> glc_servers_manager_s, new_config_p -> glc_servers_manager_s, & (merged_config_p -> glc_servers_manager_s)))
 														{
+															if (CopyStringValue (pool_p, base_config_p -> glc_services_config_path_s, new_config_p -> glc_services_config_path_s, & (merged_config_p -> glc_services_config_path_s)))
+																{
+																	apr_hash_t *merged_servers_p = apr_hash_overlay (pool_p, new_config_p -> glc_servers_p, base_config_p -> glc_servers_p);
+
+																	if (merged_servers_p)
+																		{
+																			merged_config_p -> glc_servers_p = merged_servers_p;
+																			merged_config_p -> glc_server_p = new_config_p -> glc_server_p ? new_config_p -> glc_server_p : base_config_p -> glc_server_p;
+
+																			return merged_config_p;
+																		}
+																	else
+																		{
+																			ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to create merged grassroots servers hash table");
+																		}
+																}
+															else
+																{
+																	ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to set merged config glc_services_config_path_s from \"%s\" and \"%s\"", base_config_p -> glc_services_config_path_s ? base_config_p -> glc_services_config_path_s : "NULL", new_config_p -> glc_services_config_path_s ? new_config_p -> glc_services_config_path_s : "NULL");
+																}
+														}
+													else
+														{
+															ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to set merged config glc_servers_manager_s from \"%s\" and \"%s\"", base_config_p -> glc_servers_manager_s ? base_config_p -> glc_servers_manager_s : "NULL", new_config_p -> glc_servers_manager_s ? new_config_p -> glc_servers_manager_s : "NULL");
 														}
 												}
+											else
+												{
+													ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to set merged config glc_jobs_manager_s from \"%s\" and \"%s\"", base_config_p -> glc_jobs_manager_s ? base_config_p -> glc_jobs_manager_s : "NULL", new_config_p -> glc_jobs_manager_s ? new_config_p -> glc_jobs_manager_s : "NULL");
+												}
+										}
+									else
+										{
+											ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to set merged config glc_provider_name_s from \"%s\" and \"%s\"", base_config_p -> glc_provider_name_s ? base_config_p -> glc_provider_name_s : "NULL", new_config_p -> glc_provider_name_s ? new_config_p -> glc_provider_name_s : "NULL");
 										}
 								}
+							else
+								{
+									ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to set merged config glc_context_s from \"%s\" and \"%s\"", base_config_p -> glc_context_s ? base_config_p -> glc_context_s : "NULL", new_config_p -> glc_context_s ? new_config_p -> glc_context_s : "NULL");
+								}
+						}
+					else
+						{
+							ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to set merged config glc_config_s from \"%s\" and \"%s\"", base_config_p -> glc_config_s ? base_config_p -> glc_config_s : "NULL", new_config_p -> glc_root_path_s ? new_config_p -> glc_config_s : "NULL");
 						}
 				}
+			else
+				{
+					ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to set merged config glc_root_path_s from \"%s\" and \"%s\"", base_config_p -> glc_root_path_s ? base_config_p -> glc_root_path_s : "NULL", new_config_p -> glc_root_path_s ? new_config_p -> glc_root_path_s : "NULL");
+				}
+
 		}
 	else
 		{
 			ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to allocate merged config");
 		}
 
-	return merged_config_p;
+	return NULL;
 }
 
 
@@ -874,5 +903,8 @@ static int ProcessLocationsHashEntry (void *data_p, const void *key_p, apr_ssize
 
 	return res;
 }
+
+
+
 
 
