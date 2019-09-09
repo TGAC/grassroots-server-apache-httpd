@@ -78,6 +78,7 @@ static const char *SetGrassrootsJobsManager (cmd_parms *cmd_p, void *cfg_p, cons
 static const char *SetGrassrootsConfigFilename (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
 
 static const char *SetGrassrootsServiceConfigPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
+static const char *SetGrassrootsReferencesPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
 
 
 static void *CreateServerConfig (apr_pool_t *pool_p, server_rec *server_p);
@@ -132,6 +133,7 @@ static const command_rec s_grassroots_directives [] =
 	AP_INIT_TAKE1 ("GrassrootsCache", SetGrassrootsCacheProvider, NULL, ACCESS_CONF, "The provider for the Jobs Cache"),
 	AP_INIT_TAKE1 ("GrassrootsConfig", SetGrassrootsConfigFilename, NULL, ACCESS_CONF, "The config file to use for this Grassroots Server"),
 	AP_INIT_TAKE1 ("GrassrootsServicesConfigPath", SetGrassrootsServiceConfigPath, NULL, ACCESS_CONF, "The path to the individual services config files"),
+	AP_INIT_TAKE1 ("GrassrootsReferenceServicesPath", SetGrassrootsReferencesPath, NULL, ACCESS_CONF, "The path to the referred service files"),
 	AP_INIT_TAKE1 ("GrassrootsRoot", SetGrassrootsRootPath, NULL, ACCESS_CONF, "The path to the Grassroots installation"),
 	AP_INIT_TAKE1 ("GrassrootsServersManager", SetGrassrootsServersManager, NULL, ACCESS_CONF, "The path to the Grassroots Servers Manager Module to use"),
 	AP_INIT_TAKE1 ("GrassrootsJobManager", SetGrassrootsJobsManager, NULL, ACCESS_CONF, "The path to the Grassroots Jobs Manager Module to use"),
@@ -143,6 +145,7 @@ static const command_rec s_grassroots_directives [] =
 static const char * const s_jobs_manager_cache_id_s = "grassroots-jobs-socache";
 
 static const char * const s_servers_manager_cache_id_s = "grassroots-servers-socache";
+
 
 
 /* Define our module as an entity and assign a function for registering hooks  */
@@ -264,6 +267,7 @@ static GrassrootsLocationConfig *CreateConfig (apr_pool_t *pool_p, server_rec *s
 							config_p -> glc_servers_manager_s = NULL;
 							config_p -> glc_config_s = NULL;
 							config_p -> glc_services_config_path_s = NULL;
+							config_p -> glc_references_path_s = NULL;
 							config_p -> glc_servers_p = servers_p;
 							config_p -> glc_server_p = server_p;
 						}
@@ -337,19 +341,28 @@ static void *MergeConfigs (apr_pool_t *pool_p, void *base_p, void *new_p)
 														{
 															if (CopyStringValue (pool_p, base_config_p -> glc_services_config_path_s, new_config_p -> glc_services_config_path_s, & (merged_config_p -> glc_services_config_path_s)))
 																{
-																	apr_hash_t *merged_servers_p = apr_hash_overlay (pool_p, new_config_p -> glc_servers_p, base_config_p -> glc_servers_p);
-
-																	if (merged_servers_p)
+																	if (CopyStringValue (pool_p, base_config_p -> glc_references_path_s, new_config_p -> glc_references_path_s, & (merged_config_p -> glc_references_path_s)))
 																		{
-																			merged_config_p -> glc_servers_p = merged_servers_p;
-																			merged_config_p -> glc_server_p = new_config_p -> glc_server_p ? new_config_p -> glc_server_p : base_config_p -> glc_server_p;
+																			apr_hash_t *merged_servers_p = apr_hash_overlay (pool_p, new_config_p -> glc_servers_p, base_config_p -> glc_servers_p);
 
-																			return merged_config_p;
+																			if (merged_servers_p)
+																				{
+																					merged_config_p -> glc_servers_p = merged_servers_p;
+																					merged_config_p -> glc_server_p = new_config_p -> glc_server_p ? new_config_p -> glc_server_p : base_config_p -> glc_server_p;
+
+																					return merged_config_p;
+																				}
+																			else
+																				{
+																					ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to create merged grassroots servers hash table");
+																				}
+
 																		}
 																	else
 																		{
-																			ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to create merged grassroots servers hash table");
+																			ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to set merged config glc_references_path_s from \"%s\" and \"%s\"", base_config_p -> glc_services_config_path_s ? base_config_p -> glc_services_config_path_s : "NULL", new_config_p -> glc_services_config_path_s ? new_config_p -> glc_services_config_path_s : "NULL");
 																		}
+
 																}
 															else
 																{
@@ -511,9 +524,28 @@ static int GrassrootsPostConfig (apr_pool_t *config_pool_p, apr_pool_t *log_p, a
 
   		if (config_p -> glc_provider_name_s)
   			{
+  				if (IsAPRServersManagerName (config_p -> glc_servers_manager_s))
+  					{
+  						ServersManager *manager_p = InitAPRServersManager (server_p, pool_p, config_p -> glc_provider_name_s);
 
+							if (manager_p)
+								{
+									if (PostConfigAPRServersManager (manager_p, pool_p, server_p, config_p -> glc_provider_name_s))
+										{
+											ret = OK;
+										}
+									else
+										{
+				  	  				ap_log_error (APLOG_MARK, APLOG_CRIT, ret, server_p, "PostConfigAPRServersManager failed for provided \"%s\"", config_p -> glc_provider_name_s);
+										}
+								}
+							else
+								{
+		  	  				ap_log_error (APLOG_MARK, APLOG_CRIT, ret, server_p, "Failed to create servers manager for provider \"%s\"", config_p -> glc_provider_name_s);
+								}
 
-  				ret = OK;
+  					}
+
   				/*
   	  		config_p -> glc_jobs_manager_p = InitAPRJobsManager (server_p, pool_p, config_p -> glc_provider_name_s);
 
@@ -598,6 +630,14 @@ static const char *SetGrassrootsServiceConfigPath (cmd_parms *cmd_p, void *cfg_p
 	return SetGrassrootsConfigString (cmd_p, & (config_p -> glc_services_config_path_s), arg_s, config_p);
 }
 
+
+/* Handler for the "GrassrootsReferenceServicesPath" directive */
+static const char *SetGrassrootsReferencesPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s)
+{
+	GrassrootsLocationConfig *config_p = (GrassrootsLocationConfig *) cfg_p;
+
+	return SetGrassrootsConfigString (cmd_p, & (config_p -> glc_services_config_path_s), arg_s, config_p);
+}
 
 
 static apr_status_t CleanUpTasks (void *value_p)
@@ -859,12 +899,33 @@ static GrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const lo
   		 */
   		if (config_p -> glc_root_path_s)
   			{
+					apr_pool_t *pool_p = apr_hash_pool_get (config_p -> glc_servers_p);
   				JobsManager *jobs_manager_p = NULL;
   				MEM_FLAG jobs_manager_mem = MF_ALREADY_FREED;
   				ServersManager *servers_manager_p = NULL;
   				MEM_FLAG servers_manager_mem = MF_ALREADY_FREED;
 
-  				grassroots_p = AllocateGrassrootsServer (config_p -> glc_root_path_s, config_p -> glc_config_s, config_p -> glc_services_config_path_s, jobs_manager_p, jobs_manager_mem, servers_manager_p, servers_manager_mem);
+
+  				/*
+  				 * Are we using the apache-supplied servers manager?
+  				 */
+  				if (IsAPRServersManagerName (config_p -> glc_servers_manager_s))
+  					{
+  						servers_manager_p = APRServersManagerChildInit (pool_p, config_p);
+
+  						if (servers_manager_p)
+  							{
+  								servers_manager_mem = MF_SHADOW_USE;
+  							}
+  						else
+  							{
+
+
+  							}
+
+  					}		/* if (IsAPRServersManagerName (config_p -> glc_servers_manager_s)) */
+
+  				grassroots_p = AllocateGrassrootsServer (config_p -> glc_root_path_s, config_p -> glc_config_s, config_p -> glc_services_config_path_s, config_p -> glc_references_path_s, jobs_manager_p, jobs_manager_mem, servers_manager_p, servers_manager_mem);
 
   				if (grassroots_p)
   					{

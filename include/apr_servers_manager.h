@@ -70,6 +70,9 @@
  */
 APR_SERVERS_MANAGER_PREFIX const char *APR_SERVERS_MANAGER_CACHE_ID_S APR_SERVERS_MANAGER_VAL("grassroots-servers-socache");
 
+APR_SERVERS_MANAGER_PREFIX const char *APR_SERVERS_MANAGER_NAME_S APR_SERVERS_MANAGER_VAL("grassroots-apr-servers-manager");
+
+
 
 #ifdef __cplusplus
 extern "C"
@@ -99,7 +102,7 @@ APRServersManager *InitAPRServersManager (server_rec *server_p, apr_pool_t *pool
  * @return <code>true</code> if the APRServersManager is adjusted correctly,
  * <code>false</code> upon error.
  */
-APRServersManager *APRServersManagerChildInit (apr_pool_t *pool_p, server_rec *server_p);
+APRServersManager *APRServersManagerChildInit (apr_pool_t *pool_p, GrassrootsLocationConfig *config_p);
 
 
 /**
@@ -139,6 +142,9 @@ bool PostConfigAPRServersManager (APRServersManager *manager_p, apr_pool_t *conf
  * @memberof APRServersManager
  */
 bool APRServersManagerPreConfigure (APRServersManager *manager_p, apr_pool_t *config_pool_p);
+
+
+bool IsAPRServersManagerName (const char * const name_s);
 
 
 

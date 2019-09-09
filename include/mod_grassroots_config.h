@@ -36,7 +36,7 @@
 #include "ap_socache.h"
 
 #include "jobs_manager.h"
-#include "servers_pool.h"
+#include "servers_manager.h"
 #include "string_utils.h"
 
 
@@ -124,6 +124,15 @@ typedef struct
 	 * "config" will be used.
 	 */
 	char *glc_services_config_path_s;
+
+
+	/**
+	 * The path to the folder containing the reference service files.
+	 * If this is <code>NULL</code> then the default of
+	 * "references" will be used.
+	 */
+	char *glc_references_path_s;
+
 
 
 	/**

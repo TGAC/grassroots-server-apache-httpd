@@ -25,7 +25,7 @@
 #include "mod_grassroots_config.h"
 #include "apr_hash.h"
 
-#include "servers_pool.h"
+#include "servers_manager.h"
 
 #include "string_utils.h"
 #include "memory_allocations.h"
@@ -163,7 +163,7 @@ bool PostConfigAPRServersManager (APRServersManager *manager_p, apr_pool_t *serv
 	apr_interval_time_t expiry = APR_INT64_MAX;
 	struct ap_socache_hints cache_hints = { UUID_STRING_BUFFER_SIZE, sizeof (ExternalServer), expiry };
 
-	success_flag = PostConfigureGlobalStorage(manager_p -> asm_store_p, server_pool_p, server_p, provider_name_s, &cache_hints);
+	success_flag = PostConfigureGlobalStorage (manager_p -> asm_store_p, server_pool_p, server_p, provider_name_s, &cache_hints);
 
 //	if (success_flag)
 //		{
@@ -175,10 +175,9 @@ bool PostConfigAPRServersManager (APRServersManager *manager_p, apr_pool_t *serv
 
 
 
-APRServersManager *APRServersManagerChildInit (apr_pool_t *pool_p, server_rec *server_p)
+APRServersManager *APRServersManagerChildInit (apr_pool_t *pool_p, GrassrootsLocationConfig *config_p)
 {
-	GrassrootsLocationConfig *config_p = ap_get_module_config (server_p -> module_config, GetGrassrootsModule ());
-	APRServersManager *manager_p = InitAPRServersManager (server_p, pool_p, config_p -> glc_provider_name_s);
+	APRServersManager *manager_p = InitAPRServersManager (config_p -> glc_server_p, pool_p, config_p -> glc_provider_name_s);
 
 	if (manager_p)
 		{
@@ -193,6 +192,11 @@ APRServersManager *APRServersManagerChildInit (apr_pool_t *pool_p, server_rec *s
 	return NULL;
 }
 
+
+bool IsAPRServersManagerName (const char * const name_s)
+{
+	return (name_s && (strcmp (name_s, APR_SERVERS_MANAGER_NAME_S) == 0));
+}
 
 
 static bool AddExternalServerToAprServersManager (ServersManager *servers_manager_p, ExternalServer *server_p, unsigned char *(*serialise_fn) (ExternalServer *server_p, uint32 *length_p))
