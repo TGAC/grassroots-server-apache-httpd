@@ -55,7 +55,7 @@ static const char s_mutex_filename_s [] = "logs/grassroots_servers_manager_lock"
 /**************************/
 
 
-static bool AddExternalServerToAprServersManager (ServersManager *servers_manager_p, ExternalServer *server_p, unsigned char *(*serialise_fn) (ExternalServer *server_p, uint32 *length_p));
+static int AddExternalServerToAprServersManager (ServersManager *servers_manager_p, ExternalServer *server_p, unsigned char *(*serialise_fn) (ExternalServer *server_p, uint32 *length_p));
 
 
 static ExternalServer *GetExternalServerFromAprServersManager (ServersManager *manager_p, const char * const server_uri_s, ExternalServer *(*deserialise_fn) (const unsigned char *data_p));
@@ -82,7 +82,7 @@ static bool DestroyAPRServersManager (ServersManager *manager_p);
 
 /**************************/
 
-APRServersManager *InitAPRServersManager (server_rec *server_p, apr_pool_t *pool_p, const char *provider_name_s)
+APRServersManager *InitAPRServersManager (server_rec *server_p, const char * const id_s, apr_pool_t *pool_p, const char *provider_name_s)
 {
 	APRServersManager *manager_p = (APRServersManager *) AllocMemory (sizeof (APRServersManager));
 
@@ -104,7 +104,7 @@ APRServersManager *InitAPRServersManager (server_rec *server_p, apr_pool_t *pool
 																						FreeAPRExternalServer,
 																						server_p,
 																						s_mutex_filename_s,
-																						APR_SERVERS_MANAGER_CACHE_ID_S,
+																						id_s,
 																						provider_name_s,
 																						compress_fn,
 																						decompress_fn);
@@ -177,7 +177,7 @@ bool PostConfigAPRServersManager (APRServersManager *manager_p, apr_pool_t *serv
 
 APRServersManager *APRServersManagerChildInit (apr_pool_t *pool_p, GrassrootsLocationConfig *config_p)
 {
-	APRServersManager *manager_p = InitAPRServersManager (config_p -> glc_server_p, pool_p, config_p -> glc_provider_name_s);
+	APRServersManager *manager_p = InitAPRServersManager (config_p -> glc_server_p, APR_SERVERS_MANAGER_CACHE_ID_S, pool_p, config_p -> glc_provider_name_s);
 
 	if (manager_p)
 		{
@@ -199,10 +199,10 @@ bool IsAPRServersManagerName (const char * const name_s)
 }
 
 
-static bool AddExternalServerToAprServersManager (ServersManager *servers_manager_p, ExternalServer *server_p, unsigned char *(*serialise_fn) (ExternalServer *server_p, uint32 *length_p))
+static int AddExternalServerToAprServersManager (ServersManager *servers_manager_p, ExternalServer *server_p, unsigned char *(*serialise_fn) (ExternalServer *server_p, uint32 *length_p))
 {
 	APRServersManager *manager_p = (APRServersManager *) servers_manager_p;
-	bool success_flag = false;
+	int res = -1;
 	unsigned char *value_p = NULL;
 	unsigned int value_length = 0;
 	void (*free_value_fn) (void *data_p)  = NULL;
@@ -252,11 +252,15 @@ static bool AddExternalServerToAprServersManager (ServersManager *servers_manage
 				}
 			#endif
 
-			success_flag = AddObjectToAPRGlobalStorage (manager_p -> asm_store_p, server_p -> es_uri_s, strlen (server_p -> es_uri_s), value_p, value_length);
+			if (AddObjectToAPRGlobalStorage (manager_p -> asm_store_p, server_p -> es_uri_s, strlen (server_p -> es_uri_s), value_p, value_length))
+				{
+					// since we've serialised server_p, it doesn't need to be kept in memory, so return acccordingly
+					res = 0;
+				}
 
 			#if APR_SERVERS_MANAGER_DEBUG >= STM_LEVEL_FINER
 				{
-					PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "Added \"%s\"=\"%s\", success=%d", server_p -> es_uri_s, value_p, success_flag);
+					PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "Added \"%s\"=\"%s\", success=%d", server_p -> es_uri_s, value_p, res);
 				}
 			#endif
 
@@ -271,7 +275,7 @@ static bool AddExternalServerToAprServersManager (ServersManager *servers_manage
 			PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Couldn't serialise ExternalService");
 		}
 
-	return success_flag;
+	return res;
 }
 
 

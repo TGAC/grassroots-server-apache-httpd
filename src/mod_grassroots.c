@@ -86,7 +86,7 @@ static void *CreateServerConfig (apr_pool_t *pool_p, server_rec *server_p);
 static void *MergeServerConfig (apr_pool_t *pool_p, void *base_config_p, void *vhost_config_p);
 
 
-static void *CreateDirectoryConfig (apr_pool_t *pool_p, char *context_s);
+static void *CreateDirectoryConfig (apr_pool_t *pool_p, const char *context_s);
 static void *MergeDirectoryConfig (apr_pool_t *pool_p, void *base_config_p, void *new_config_p);
 
 static void *MergeConfigs (apr_pool_t *pool_p, void *base_p, void *new_p);
@@ -226,7 +226,7 @@ static void *CreateServerConfig (apr_pool_t *pool_p, server_rec *server_p)
 }
 
 
-static void *CreateDirectoryConfig (apr_pool_t *pool_p, char *context_s)
+static void *CreateDirectoryConfig (apr_pool_t *pool_p, const char *context_s)
 {
 	return ((void *) CreateConfig (pool_p, NULL, context_s));
 }
@@ -522,11 +522,15 @@ static int GrassrootsPostConfig (apr_pool_t *config_pool_p, apr_pool_t *log_p, a
        */
   		GrassrootsLocationConfig *config_p = (GrassrootsLocationConfig *) ap_get_module_config (server_p -> module_config, &grassroots_module);
 
+
+  		ret = OK;
+
   		if (config_p -> glc_provider_name_s)
   			{
+  				/*
   				if (IsAPRServersManagerName (config_p -> glc_servers_manager_s))
   					{
-  						ServersManager *manager_p = InitAPRServersManager (server_p, pool_p, config_p -> glc_provider_name_s);
+  						APRServersManager *manager_p = InitAPRServersManager (server_p, APR_SERVERS_MANAGER_CACHE_ID_S, pool_p, config_p -> glc_provider_name_s);
 
 							if (manager_p)
 								{
@@ -545,7 +549,7 @@ static int GrassrootsPostConfig (apr_pool_t *config_pool_p, apr_pool_t *log_p, a
 								}
 
   					}
-
+					*/
   				/*
   	  		config_p -> glc_jobs_manager_p = InitAPRJobsManager (server_p, pool_p, config_p -> glc_provider_name_s);
 

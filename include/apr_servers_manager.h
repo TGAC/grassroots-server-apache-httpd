@@ -68,9 +68,9 @@
  *
  * @ingroup httpd_server
  */
-APR_SERVERS_MANAGER_PREFIX const char *APR_SERVERS_MANAGER_CACHE_ID_S APR_SERVERS_MANAGER_VAL("grassroots-servers-socache");
+APR_SERVERS_MANAGER_PREFIX const char * const APR_SERVERS_MANAGER_CACHE_ID_S APR_SERVERS_MANAGER_VAL("grassroots-servers-socache");
 
-APR_SERVERS_MANAGER_PREFIX const char *APR_SERVERS_MANAGER_NAME_S APR_SERVERS_MANAGER_VAL("grassroots-apr-servers-manager");
+APR_SERVERS_MANAGER_PREFIX const char * const APR_SERVERS_MANAGER_NAME_S APR_SERVERS_MANAGER_VAL("grassroots-apr-servers-manager");
 
 
 
@@ -88,7 +88,7 @@ extern "C"
  * @memberof APRServersManager
  * @return A newly-allocated APRServersManager or <code>NULL</code> upon error.
  */
-APRServersManager *InitAPRServersManager (server_rec *server_p, apr_pool_t *pool_p, const char *provider_name_s);
+APRServersManager *InitAPRServersManager (server_rec *server_p, const char * const id_s, apr_pool_t *pool_p, const char *provider_name_s);
 
 
 /**
