@@ -102,7 +102,7 @@ APRServersManager *InitAPRServersManager (server_rec *server_p, const char * con
  * @return <code>true</code> if the APRServersManager is adjusted correctly,
  * <code>false</code> upon error.
  */
-APRServersManager *APRServersManagerChildInit (apr_pool_t *pool_p, GrassrootsLocationConfig *config_p);
+APRServersManager *APRServersManagerChildInit (const char * const id_s, apr_pool_t *pool_p, GrassrootsLocationConfig *config_p);
 
 
 /**

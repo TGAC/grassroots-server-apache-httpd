@@ -906,7 +906,7 @@ static GrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const lo
 					apr_pool_t *pool_p = apr_hash_pool_get (config_p -> glc_servers_p);
   				JobsManager *jobs_manager_p = NULL;
   				MEM_FLAG jobs_manager_mem = MF_ALREADY_FREED;
-  				ServersManager *servers_manager_p = NULL;
+  				APRServersManager *servers_manager_p = NULL;
   				MEM_FLAG servers_manager_mem = MF_ALREADY_FREED;
 
 
@@ -915,7 +915,7 @@ static GrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const lo
   				 */
   				if (IsAPRServersManagerName (config_p -> glc_servers_manager_s))
   					{
-  						servers_manager_p = APRServersManagerChildInit (pool_p, config_p);
+  						servers_manager_p = APRServersManagerChildInit (location_s, pool_p, config_p);
 
   						if (servers_manager_p)
   							{
@@ -929,7 +929,7 @@ static GrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const lo
 
   					}		/* if (IsAPRServersManagerName (config_p -> glc_servers_manager_s)) */
 
-  				grassroots_p = AllocateGrassrootsServer (config_p -> glc_root_path_s, config_p -> glc_config_s, config_p -> glc_services_config_path_s, config_p -> glc_references_path_s, jobs_manager_p, jobs_manager_mem, servers_manager_p, servers_manager_mem);
+  				grassroots_p = AllocateGrassrootsServer (config_p -> glc_root_path_s, config_p -> glc_config_s, config_p -> glc_services_config_path_s, config_p -> glc_references_path_s, jobs_manager_p, jobs_manager_mem, & (servers_manager_p -> asm_base_manager), servers_manager_mem);
 
   				if (grassroots_p)
   					{
@@ -955,6 +955,7 @@ static int ProcessLocationsHashEntry (void *data_p, const void *key_p, apr_ssize
 	server_rec *server_p = (server_rec *) data_p;
 	const char *location_s = (const char *) key_p;
 	GrassrootsLocationConfig *config_p = (GrassrootsLocationConfig *) value_p;
+
 	GrassrootsServer *grassroots_p = GetOrCreateNamedGrassrootsServer (location_s, config_p);
 
 	if (grassroots_p)

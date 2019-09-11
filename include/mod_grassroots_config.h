@@ -133,8 +133,6 @@ typedef struct
 	 */
 	char *glc_references_path_s;
 
-
-
 	/**
 	 *  A lookup table where the keys are the paths for each Location and Directory directive
 	 *  and the values are the NamedGrassrootsServers associated with these

@@ -175,9 +175,9 @@ bool PostConfigAPRServersManager (APRServersManager *manager_p, apr_pool_t *serv
 
 
 
-APRServersManager *APRServersManagerChildInit (apr_pool_t *pool_p, GrassrootsLocationConfig *config_p)
+APRServersManager *APRServersManagerChildInit (const char * const id_s, apr_pool_t *pool_p, GrassrootsLocationConfig *config_p)
 {
-	APRServersManager *manager_p = InitAPRServersManager (config_p -> glc_server_p, APR_SERVERS_MANAGER_CACHE_ID_S, pool_p, config_p -> glc_provider_name_s);
+	APRServersManager *manager_p = InitAPRServersManager (config_p -> glc_server_p, id_s, pool_p, config_p -> glc_provider_name_s);
 
 	if (manager_p)
 		{
