@@ -59,8 +59,16 @@
 
 
 
-
+/*
+ * A map where the keys are the locations and
+ * the values are the GrassrootsLocationConfig
+ * instances for those locations
+ */
 static apr_hash_t *s_locations_p;
+
+
+
+static bool s_using_apr_servers_manager_flag;
 
 
 /* Define prototypes of our functions in this module */
@@ -86,7 +94,7 @@ static void *CreateServerConfig (apr_pool_t *pool_p, server_rec *server_p);
 static void *MergeServerConfig (apr_pool_t *pool_p, void *base_config_p, void *vhost_config_p);
 
 
-static void *CreateDirectoryConfig (apr_pool_t *pool_p, const char *context_s);
+static void *CreateDirectoryConfig (apr_pool_t *pool_p, char *context_s);
 static void *MergeDirectoryConfig (apr_pool_t *pool_p, void *base_config_p, void *new_config_p);
 
 static void *MergeConfigs (apr_pool_t *pool_p, void *base_p, void *new_p);
@@ -102,7 +110,8 @@ static apr_status_t ClearServerResources (void *value_p);
 
 static apr_status_t CleanUpTasks (void *value_p);
 
-static apr_status_t CleanUpModule (void *value_p);
+
+static apr_status_t CleanUpGrassrootServer (void *value_p);
 
 
 static bool CopyStringValue (apr_pool_t *pool_p, const char *base_src_s, const char *add_src_s, char **dest_ss);
@@ -185,6 +194,7 @@ static void RegisterHooks (apr_pool_t *pool_p)
 static int GrassrootsPreConfig (apr_pool_t *config_pool_p, apr_pool_t *log_pool_p, apr_pool_t *temp_pool_p)
 {
 	int res = 500;
+
 	apr_status_t status = ap_mutex_register (config_pool_p, s_jobs_manager_cache_id_s, NULL, APR_LOCK_DEFAULT, 0);
 
 	if (status == APR_SUCCESS)
@@ -197,6 +207,8 @@ static int GrassrootsPreConfig (apr_pool_t *config_pool_p, apr_pool_t *log_pool_
 
 					if (s_locations_p)
 						{
+							s_using_apr_servers_manager_flag = false;
+
 							res = OK;
 						}
 					else
@@ -216,6 +228,7 @@ static int GrassrootsPreConfig (apr_pool_t *config_pool_p, apr_pool_t *log_pool_
 			ap_log_error (APLOG_MARK, APLOG_CRIT, status, NULL, "ap_mutex_register for s_jobs_manager_cache_id_s failed");
 		}
 
+
 	return res;
 }
 
@@ -226,7 +239,7 @@ static void *CreateServerConfig (apr_pool_t *pool_p, server_rec *server_p)
 }
 
 
-static void *CreateDirectoryConfig (apr_pool_t *pool_p, const char *context_s)
+static void *CreateDirectoryConfig (apr_pool_t *pool_p, char *context_s)
 {
 	return ((void *) CreateConfig (pool_p, NULL, context_s));
 }
@@ -322,7 +335,7 @@ static void *MergeConfigs (apr_pool_t *pool_p, void *base_p, void *new_p)
 {
 	GrassrootsLocationConfig *base_config_p = (GrassrootsLocationConfig *) base_p;
 	GrassrootsLocationConfig *new_config_p = (GrassrootsLocationConfig *) new_p;
-	const char *context_s = new_config_p -> glc_context_s ? new_config_p -> glc_context_s : base_config_p -> glc_context_s;
+	char *context_s = new_config_p -> glc_context_s ? new_config_p -> glc_context_s : base_config_p -> glc_context_s;
 	GrassrootsLocationConfig *merged_config_p = (GrassrootsLocationConfig *) CreateDirectoryConfig (pool_p, context_s);
 
 	if (merged_config_p)
@@ -447,9 +460,6 @@ static void GrassrootsChildInit (apr_pool_t *pool_p, server_rec *server_p)
 							/* Do any clean up required by the running of asynchronous tasks */
 							apr_pool_cleanup_register (pool_p, NULL, CleanUpTasks, apr_pool_cleanup_null);
 
-							apr_pool_cleanup_register (pool_p, config_p, CleanUpModule, apr_pool_cleanup_null);
-
-
 		  				/*
 		  				 * We should now have a set of all of the required locations that will each need
 		  				 * an individual GrassrootsServer instance.
@@ -493,7 +503,7 @@ static int GrassrootsPostConfig (apr_pool_t *config_pool_p, apr_pool_t *log_p, a
   void *data_p = NULL;
   const char *userdata_key_s = "grassroots_post_config";
   int ret = HTTP_INTERNAL_SERVER_ERROR;
-  apr_pool_t *pool_p = config_pool_p;
+  apr_pool_t *server_pool_p = server_p -> process -> pool;
 
   /* Apache loads DSO modules twice. We want to wait until the second
    * load before setting up our global mutex and shared memory segment.
@@ -501,7 +511,7 @@ static int GrassrootsPostConfig (apr_pool_t *config_pool_p, apr_pool_t *log_p, a
    * dummy userdata in a pool that lives longer than the first DSO
    * load, and only run if that data is set on subsequent calls to
    * this hook. */
-  apr_pool_userdata_get (&data_p, userdata_key_s, server_p -> process -> pool);
+  apr_pool_userdata_get (&data_p, userdata_key_s, server_pool_p);
 
   if (data_p == NULL)
   	{
@@ -510,7 +520,7 @@ static int GrassrootsPostConfig (apr_pool_t *config_pool_p, apr_pool_t *log_p, a
        * DSO may not be at the same address offset when it is reloaded.
        * Since setn() does not make a copy and only compares addresses,
        * the get() will be unable to find the original userdata. */
-      apr_pool_userdata_set ((const void *) 1, userdata_key_s, apr_pool_cleanup_null, server_p -> process -> pool);
+      apr_pool_userdata_set ((const void *) 1, userdata_key_s, apr_pool_cleanup_null, server_pool_p);
 
       ret = OK; /* This would be the first time through */
   	}
@@ -527,29 +537,27 @@ static int GrassrootsPostConfig (apr_pool_t *config_pool_p, apr_pool_t *log_p, a
 
   		if (config_p -> glc_provider_name_s)
   			{
-  				/*
-  				if (IsAPRServersManagerName (config_p -> glc_servers_manager_s))
+  				if (s_using_apr_servers_manager_flag)
   					{
-  						APRServersManager *manager_p = InitAPRServersManager (server_p, APR_SERVERS_MANAGER_CACHE_ID_S, pool_p, config_p -> glc_provider_name_s);
+  						APRServersManager *external_servers_manager_p = AllocateAPRServersManager (server_p, APR_SERVERS_MANAGER_CACHE_ID_S, config_pool_p, config_p -> glc_provider_name_s);
 
-							if (manager_p)
-								{
-									if (PostConfigAPRServersManager (manager_p, pool_p, server_p, config_p -> glc_provider_name_s))
-										{
-											ret = OK;
-										}
-									else
-										{
+  						if (external_servers_manager_p)
+  							{
+  								if (!PostConfigAPRServersManager (external_servers_manager_p, config_pool_p, server_p, config_p -> glc_provider_name_s))
+  									{
 				  	  				ap_log_error (APLOG_MARK, APLOG_CRIT, ret, server_p, "PostConfigAPRServersManager failed for provided \"%s\"", config_p -> glc_provider_name_s);
-										}
-								}
-							else
-								{
-		  	  				ap_log_error (APLOG_MARK, APLOG_CRIT, ret, server_p, "Failed to create servers manager for provider \"%s\"", config_p -> glc_provider_name_s);
-								}
+  										ret = HTTP_INTERNAL_SERVER_ERROR;
+  									}
 
+  							}
+  						else
+  							{
+		  	  				ap_log_error (APLOG_MARK, APLOG_CRIT, ret, server_p, "AllocateAPRServersManager failed for provided \"%s\"", config_p -> glc_provider_name_s);
+  								ret = HTTP_INTERNAL_SERVER_ERROR;
+  							}
   					}
-					*/
+
+
   				/*
   	  		config_p -> glc_jobs_manager_p = InitAPRJobsManager (server_p, pool_p, config_p -> glc_provider_name_s);
 
@@ -652,21 +660,10 @@ static apr_status_t CleanUpTasks (void *value_p)
 }
 
 
-static apr_status_t CleanUpModule (void *value_p)
+static apr_status_t CleanUpGrassrootServer (void *value_p)
 {
-	GrassrootsLocationConfig *config_p = (GrassrootsLocationConfig *) value_p;
-	apr_hash_index_t *index_p;
-	apr_pool_t *pool_p = apr_hash_pool_get (config_p -> glc_servers_p);
-
-	for (index_p = apr_hash_first (pool_p, config_p -> glc_servers_p); index_p; index_p = apr_hash_next (index_p))
-		{
-			char *key_s = NULL;
-			GrassrootsServer *grassroots_p = NULL;
-
-			apr_hash_this (index_p, (const void **) &key_s, NULL, (void **) &grassroots_p);
-
-			FreeGrassrootsServer (grassroots_p);
-		}
+	GrassrootsServer *grassroots_p = (GrassrootsServer *) value_p;
+	FreeGrassrootsServer (grassroots_p);
 
 	return APR_SUCCESS;
 }
@@ -713,7 +710,17 @@ static const char *SetGrassrootsServersManager (cmd_parms *cmd_p, void *cfg_p, c
 {
 	GrassrootsLocationConfig *config_p = (GrassrootsLocationConfig *) cfg_p;
 
-	return SetGrassrootsConfigString (cmd_p, & (config_p -> glc_servers_manager_s), arg_s, config_p);
+	const char *error_s = SetGrassrootsConfigString (cmd_p, & (config_p -> glc_servers_manager_s), arg_s, config_p);
+
+	if (!error_s)
+		{
+			if (IsAPRServersManagerName (arg_s))
+				{
+					s_using_apr_servers_manager_flag = true;
+				}
+		}
+
+	return error_s;
 }
 
 
@@ -915,7 +922,7 @@ static GrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const lo
   				 */
   				if (IsAPRServersManagerName (config_p -> glc_servers_manager_s))
   					{
-  						servers_manager_p = APRServersManagerChildInit (location_s, pool_p, config_p);
+  						servers_manager_p = ChildInitAPRServersManager (location_s, pool_p, config_p);
 
   						if (servers_manager_p)
   							{
@@ -940,6 +947,10 @@ static GrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const lo
   							{
   								apr_hash_set (config_p -> glc_servers_p, copied_location_s, APR_HASH_KEY_STRING, grassroots_p);
   							}
+
+  						apr_pool_cleanup_register (pool_p, grassroots_p, CleanUpGrassrootServer, apr_pool_cleanup_null);
+
+
   					}
   			}
 
@@ -955,7 +966,6 @@ static int ProcessLocationsHashEntry (void *data_p, const void *key_p, apr_ssize
 	server_rec *server_p = (server_rec *) data_p;
 	const char *location_s = (const char *) key_p;
 	GrassrootsLocationConfig *config_p = (GrassrootsLocationConfig *) value_p;
-
 	GrassrootsServer *grassroots_p = GetOrCreateNamedGrassrootsServer (location_s, config_p);
 
 	if (grassroots_p)

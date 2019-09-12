@@ -82,7 +82,7 @@ static bool DestroyAPRServersManager (ServersManager *manager_p);
 
 /**************************/
 
-APRServersManager *InitAPRServersManager (server_rec *server_p, const char * const id_s, apr_pool_t *pool_p, const char *provider_name_s)
+APRServersManager *AllocateAPRServersManager (server_rec *server_p, const char * const id_s, apr_pool_t *pool_p, const char *provider_name_s)
 {
 	APRServersManager *manager_p = (APRServersManager *) AllocMemory (sizeof (APRServersManager));
 
@@ -147,10 +147,8 @@ static bool DestroyAPRServersManager (ServersManager *manager_p)
 
 
 
-bool APRServersManagerPreConfigure (APRServersManager *manager_p, apr_pool_t *config_pool_p)
+bool PreConfigAPRServersManager (APRServersManager *manager_p, apr_pool_t *config_pool_p)
 {
-	manager_p -> asm_store_p -> ags_cache_id_s = APR_SERVERS_MANAGER_CACHE_ID_S;
-
 	return PreConfigureGlobalStorage (manager_p -> asm_store_p, config_pool_p);
 }
 
@@ -175,9 +173,9 @@ bool PostConfigAPRServersManager (APRServersManager *manager_p, apr_pool_t *serv
 
 
 
-APRServersManager *APRServersManagerChildInit (const char * const id_s, apr_pool_t *pool_p, GrassrootsLocationConfig *config_p)
+APRServersManager *ChildInitAPRServersManager (const char * const id_s, apr_pool_t *pool_p, GrassrootsLocationConfig *config_p)
 {
-	APRServersManager *manager_p = InitAPRServersManager (config_p -> glc_server_p, id_s, pool_p, config_p -> glc_provider_name_s);
+	APRServersManager *manager_p = AllocateAPRServersManager (config_p -> glc_server_p, id_s, pool_p, config_p -> glc_provider_name_s);
 
 	if (manager_p)
 		{

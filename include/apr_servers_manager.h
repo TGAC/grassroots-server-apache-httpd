@@ -88,7 +88,7 @@ extern "C"
  * @memberof APRServersManager
  * @return A newly-allocated APRServersManager or <code>NULL</code> upon error.
  */
-APRServersManager *InitAPRServersManager (server_rec *server_p, const char * const id_s, apr_pool_t *pool_p, const char *provider_name_s);
+APRServersManager *AllocateAPRServersManager (server_rec *server_p, const char * const id_s, apr_pool_t *pool_p, const char *provider_name_s);
 
 
 /**
@@ -102,7 +102,7 @@ APRServersManager *InitAPRServersManager (server_rec *server_p, const char * con
  * @return <code>true</code> if the APRServersManager is adjusted correctly,
  * <code>false</code> upon error.
  */
-APRServersManager *APRServersManagerChildInit (const char * const id_s, apr_pool_t *pool_p, GrassrootsLocationConfig *config_p);
+APRServersManager *ChildInitAPRServersManager (const char * const id_s, apr_pool_t *pool_p, GrassrootsLocationConfig *config_p);
 
 
 /**
@@ -141,7 +141,7 @@ bool PostConfigAPRServersManager (APRServersManager *manager_p, apr_pool_t *conf
  * @return <code>true</code> if the initialisation was successful or <code>false</code> if there was a problem.
  * @memberof APRServersManager
  */
-bool APRServersManagerPreConfigure (APRServersManager *manager_p, apr_pool_t *config_pool_p);
+bool PreConfigAPRServersManager (APRServersManager *manager_p, apr_pool_t *config_pool_p);
 
 
 bool IsAPRServersManagerName (const char * const name_s);
