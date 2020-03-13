@@ -838,6 +838,11 @@ static int GrassrootsHandler (request_rec *req_p)
 
 											ap_rputs (res_s, req_p);
 
+
+											#if MOD_GRASSROOTS_DEBUG >= STM_LEVEL_FINE
+											PrintLog  (STM_LEVEL_FINE, __FILE__, __LINE__, "RETURNING: %s", res_s);
+											#endif
+
 											free (res_s);
 										}		/* if (res_s) */
 									else
