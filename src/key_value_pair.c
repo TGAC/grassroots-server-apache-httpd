@@ -611,62 +611,67 @@ static json_t *GetServiceRequestFromURI (const char *service_name_s, apr_table_t
 		{
 			if (SetJSONString (service_req_p, SERVICE_NAME_S, service_name_s))
 				{
-					if (SetJSONBoolean (service_req_p, SERVICE_RUN_S, true))
+					if (SetJSONString (service_req_p, SERVICE_ALIAS_S, service_name_s))
 						{
-							json_t *parameter_set_json_p = json_object ();
-
-							if (parameter_set_json_p)
+							if (SetJSONBoolean (service_req_p, SERVICE_RUN_S, true))
 								{
-									if (json_object_set_new (service_req_p, PARAM_SET_KEY_S, parameter_set_json_p) == 0)
+									json_t *parameter_set_json_p = json_object ();
+
+									if (parameter_set_json_p)
 										{
-											json_t *params_json_p = json_array ();
-
-											if (params_json_p)
+											if (json_object_set_new (service_req_p, PARAM_SET_KEY_S, parameter_set_json_p) == 0)
 												{
-													if (json_object_set_new (parameter_set_json_p, PARAM_SET_PARAMS_S, params_json_p) == 0)
+													json_t *params_json_p = json_array ();
+
+													if (params_json_p)
 														{
-															int res = apr_table_do (AddParamsToJSON, params_json_p, params_table_p, NULL);
-
-															if (res == TRUE)
+															if (json_object_set_new (parameter_set_json_p, PARAM_SET_PARAMS_S, params_json_p) == 0)
 																{
-																	json_t *root_p = json_object ();
+																	int res = apr_table_do (AddParamsToJSON, params_json_p, params_table_p, NULL);
 
-																	if (root_p)
+																	if (res == TRUE)
 																		{
-																			json_t *array_p = json_array ();
+																			json_t *root_p = json_object ();
 
-																			if (array_p)
+																			if (root_p)
 																				{
-																					if (json_object_set_new (root_p, SERVICES_NAME_S, array_p) == 0)
+																					json_t *array_p = json_array ();
+
+																					if (array_p)
 																						{
-																							if (json_array_append_new (array_p, service_req_p) == 0)
+																							if (json_object_set_new (root_p, SERVICES_NAME_S, array_p) == 0)
 																								{
-																									return root_p;
+																									if (json_array_append_new (array_p, service_req_p) == 0)
+																										{
+																											return root_p;
+																										}
+																								}
+																							else
+																								{
+																									json_decref (array_p);
 																								}
 																						}
-																					else
-																						{
-																							json_decref (array_p);
-																						}
-																				}
 
-																			json_decref (root_p);
+																					json_decref (root_p);
+																				}
 																		}
 																}
-														}
-													else
-														{
-															json_decref (params_json_p);
+															else
+																{
+																	json_decref (params_json_p);
+																}
 														}
 												}
+											else
+												{
+													json_decref (parameter_set_json_p);
+												}
 										}
-									else
-										{
-											json_decref (parameter_set_json_p);
-										}
-								}
 
-						}		/* if (SetJSONBoolean (service_req_p, SERVICE_RUN_S, true)) */
+								}		/* if (SetJSONBoolean (service_req_p, SERVICE_RUN_S, true)) */
+
+						}		/* if (SetJSONString (service_req_p, SERVICE_ALIAS_S, service_name_s)) */
+
 
 				}		/* if (SetJSONString (service_req_p, SERVICE_NAME_S, service_name_s)) */
 
