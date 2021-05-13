@@ -30,6 +30,7 @@
 #include "util_mutex.h"
 #include "filesystem_utils.h"
 
+#include "uuid_util.h"
 
 #ifdef _DEBUG
 #define APR_GLOBAL_STORAGE_DEBUG	(STM_LEVEL_FINEST)

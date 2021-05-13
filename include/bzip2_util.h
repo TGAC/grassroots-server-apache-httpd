@@ -9,8 +9,6 @@
 #define BZIP2_UTIL_H
 
 
-#include "uuid/uuid.h"
-
 #include "typedefs.h"
 
 

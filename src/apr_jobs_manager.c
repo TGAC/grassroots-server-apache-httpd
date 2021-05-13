@@ -35,6 +35,8 @@
 #include "memory_allocations.h"
 #include "util_mutex.h"
 
+#include "uuid_util.h"
+
 #ifdef USE_BZIP2
 #include "bzip2_util.h"
 #endif
