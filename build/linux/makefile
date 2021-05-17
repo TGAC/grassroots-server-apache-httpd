@@ -39,7 +39,7 @@ ifeq ($(BUILD),release)
 	CFLAGS 	+= -Wc,-O3 -Wc,-s
  	LDFLAGS += Wl,-s
 else
-	CFLAGS 	+= -Wc,-g -Wc,-pg -Wc,-Wall -Wc,-O0
+	CFLAGS 	+= -Wc,-g -Wc,-Wall -Wc,-O0
 	LDFLAGS += -Wl,pg
 	CPPFLAGS += -Wc,-D_DEBUG
 endif
