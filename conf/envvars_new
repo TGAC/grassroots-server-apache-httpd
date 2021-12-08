@@ -1,0 +1,13 @@
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/billy/Applications/grassroots/lib
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/billy/Applications/grassroots/extras/mongodb-c/lib
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/billy/Applications/grassroots/extras/libuuid/lib
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/billy/Applications/grassroots/extras/sqlite/lib
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/billy/Applications/grassroots/extras/htslib/lib
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/billy/Applications/grassroots/extras/hcxselect/lib
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/billy/Applications/grassroots/extras/htmlcxx/lib
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/billy/Applications/grassroots/extras/jansson/lib
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/billy/Applications/grassroots/extras/pcre/lib
+
+
+export LD_LIBRARY_PATH
+#
