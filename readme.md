@@ -43,6 +43,18 @@ The only parts that a server administrator would need to change are what uri to 
 
 The uri is set using the standard httpd directives such as ```<Location>``` and ```<LocationMatch>``` and the installation directory is specified using the ```GrassrootsRoot``` directive which takes a string denoting the path. The content of an example configuration is file is shown below.
 
+The available configuration properties are described below:
+
+  * **GrassrootsCache**: The provider for the Jobs Cache
+	* **GrassrootsConfig**: The config file to use for this Grassroots Server
+	* **GrassrootsServicesConfigPath**: The path to the individual services config files
+	AP_INIT_TAKE1 ("GrassrootsReferenceServicesPath", SetGrassrootsReferencesPath, NULL, ACCESS_CONF, "The path to the referred service files"),
+	AP_INIT_TAKE1 ("GrassrootsRoot", SetGrassrootsRootPath, NULL, ACCESS_CONF, "The path to the Grassroots installation"),
+	AP_INIT_TAKE1 ("GrassrootsServersManager", SetGrassrootsServersManager, NULL, ACCESS_CONF, "The path to the Grassroots Servers Manager Module to use"),
+	AP_INIT_TAKE1 ("GrassrootsJobManager", SetGrassrootsJobsManager, NULL, ACCESS_CONF, "The path to the Grassroots Jobs Manager Module to use"),
+
+
+
 ~~~{conf}
 #
 # Load the Grassroots module and the caching modules required
