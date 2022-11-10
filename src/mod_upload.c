@@ -49,8 +49,16 @@ typedef struct
 	 */
   char **uc_fields_ss;
 
-  int form_size ;
+  int uc_form_size ;
 } UploadConf;
+
+
+
+static const char *SetFilenames (cmd_parms *cmd_p, void *cfg_p, const char *value_s);
+
+static void *CreateDirectoryConfig (apr_pool_t *p, char *x);
+
+
 
 
 static apr_status_t tmpfile_filter(ap_filter_t *f, apr_bucket_brigade *bbout,
@@ -113,24 +121,18 @@ static apr_status_t tmpfile_filter(ap_filter_t *f, apr_bucket_brigade *bbout,
 module AP_MODULE_DECLARE_DATA upload_module ;
 
 
-static void* upload_create_dir_config(apr_pool_t* p, char* x) {
-  upload_conf* conf = apr_pcalloc(p, sizeof(upload_conf)) ;
-  conf->form_size = 8 ;
-  return conf ;
-}
-
-
-
-
-static const char *SetFilenames (cmd_parms *cmd_p, void *cfg_p, const char *name_s)
+static void *CreateDirectoryConfig (apr_pool_t *p, char *x)
 {
-  upload_conf *conf_p = (upload_conf *) cfg_p;
+	UploadConf *conf_p = apr_pcalloc (p, sizeof (UploadConf)) ;
 
+	conf_p -> uc_fields_ss = NULL;
+	conf_p -> uc_form_size = 8;
 
-
-  conf->file_field = apr_pstrdup(cmd->pool, name) ;
-  return NULL ;
+	return conf_p;
 }
+
+
+
 static const char* set_formsize(cmd_parms* cmd, void* cfg, const char* sz) {
   upload_conf* conf = (upload_conf*) cfg ;
   conf->form_size = atoi(sz) ;
@@ -368,9 +370,27 @@ static apr_status_t upload_filter(ap_filter_t *f, apr_bucket_brigade *bbout,
 }
 
 
+
+
+
+static const char *SetFilenames (cmd_parms *cmd_p, void *cfg_p, const char *value_s)
+{
+	const char *ret_s = NULL;
+  UploadConf *conf_p = (UploadConf *) cfg_p;
+  apr_status_t status = apr_tokenize_to_argv (value_s, & (conf_p -> uc_fields_ss), cmd_p -> pool);
+
+  if (status != APR_SUCCESS)
+  	{
+  		ret_s = "Failed to parse filenames config value";
+  	}
+
+  return ret_s;
+}
+
+
 static const command_rec upload_cmds[] = {
-	AP_INIT_TAKE1("UploadField", set_filename, NULL, OR_ALL,
-		"Set name of file upload field" ) ,
+	AP_INIT_TAKE1("UploadField", SetFilenames, NULL, OR_ALL,
+		"Set names of file upload fields" ) ,
 	AP_INIT_TAKE1("UploadFormSize", set_formsize, NULL, OR_ALL,
 		"Set number of form fields" ) ,
 	{NULL}
@@ -387,7 +407,7 @@ static void upload_hooks(apr_pool_t* p) {
 
 module AP_MODULE_DECLARE_DATA upload_module = {
 	STANDARD20_MODULE_STUFF,
-	upload_create_dir_config,
+	CreateDirectoryConfig,
 	NULL,
 	NULL,
 	NULL,
