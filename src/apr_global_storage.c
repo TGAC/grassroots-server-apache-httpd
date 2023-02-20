@@ -102,11 +102,11 @@ bool InitAPRGlobalStorage (APRGlobalStorage *storage_p, apr_pool_t *pool_p, apr_
 
 					if (current_dir_s)
 						{
-							storage_p -> ags_largest_entry_memory_id = AllocateSharedMemory (current_dir_s, sizeof (unsigned int), 0666);
+							storage_p ->ags_mapped_mem_p = AllocateSharedMemory (current_dir_s, sizeof (unsigned int), 0666);
 
 							FreeCopiedString (current_dir_s);
 
-							if (storage_p -> ags_largest_entry_memory_id != -1)
+							if (storage_p ->ags_mapped_mem_p)
 								{
 									storage_p -> ags_entries_p = apr_hash_make_custom (pool_p, hash_fn);
 
@@ -135,7 +135,7 @@ bool InitAPRGlobalStorage (APRGlobalStorage *storage_p, apr_pool_t *pool_p, apr_
 												PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to allocate shared memory hash table");
 											}
 
-									FreeSharedMemory (storage_p -> ags_largest_entry_memory_id);
+									FreeSharedMemory (storage_p -> ags_mapped_mem_p);
 								}		/* if (storage_p -> ags_largest_entry_memory_id != -1) */
 							else
 								{
@@ -212,9 +212,9 @@ void DestroyAPRGlobalStorage (APRGlobalStorage *storage_p)
 					storage_p -> ags_socache_provider_p -> destroy (storage_p -> ags_socache_instance_p, storage_p -> ags_server_p);
 				}
 
-			if (storage_p -> ags_largest_entry_memory_id)
+			if (storage_p -> ags_mapped_mem_p)
 				{
-					FreeSharedMemory (storage_p -> ags_largest_entry_memory_id);
+					FreeSharedMemory (storage_p -> ags_mapped_mem_p);
 				}
 		}
 }
@@ -223,7 +223,8 @@ void DestroyAPRGlobalStorage (APRGlobalStorage *storage_p)
 unsigned int HashUUIDForAPR (const char *key_s, apr_ssize_t *len_p)
 {
 	unsigned int res = 0;
-	char *uuid_s = GetUUIDAsString ((const uint8 *) key_s);
+	const uuid_t *id_p = (const uuid_t *) key_s;
+	char *uuid_s = GetUUIDAsString (*id_p);
 
 	if (uuid_s)
 		{
@@ -244,7 +245,8 @@ unsigned int HashUUIDForAPR (const char *key_s, apr_ssize_t *len_p)
 unsigned char *MakeKeyFromUUID (const void *data_p, uint32 raw_key_length, uint32 *key_len_p)
 {
 	unsigned char *res_p = NULL;
-	char *uuid_s = GetUUIDAsString ((const uint8 *) data_p);
+	const uuid_t *id_p = (const uuid_t *) data_p;
+	char *uuid_s = GetUUIDAsString (*id_p);
 
 	if (uuid_s)
 		{
@@ -319,7 +321,7 @@ static apr_status_t IterateOverSOCache (ap_socache_instance_t *instance,
 static bool SetLargestEntrySize (APRGlobalStorage *storage_p, const unsigned int size)
 {
 	bool success_flag = false;
-	unsigned int *largest_size_p = (unsigned int *) OpenSharedMemory (storage_p -> ags_largest_entry_memory_id, 0);
+	unsigned int *largest_size_p = (unsigned int *) OpenSharedMemory (storage_p -> ags_mapped_mem_p, 0);
 
 	if (largest_size_p)
 		{
@@ -328,12 +330,12 @@ static bool SetLargestEntrySize (APRGlobalStorage *storage_p, const unsigned int
 					*largest_size_p = size;
 				}
 
-			CloseSharedMemory (largest_size_p);
+			CloseSharedMemory (storage_p -> ags_mapped_mem_p, largest_size_p);
 			success_flag = true;
 		}
 	else
 		{
-			PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to open shared memory %d for largest size entry", storage_p -> ags_largest_entry_memory_id);
+			PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to open shared memory for largest size entry");
 		}
 
 	return success_flag;
@@ -344,18 +346,18 @@ static bool SetLargestEntrySize (APRGlobalStorage *storage_p, const unsigned int
 static bool GetLargestEntrySize (APRGlobalStorage *storage_p, unsigned int *size_p)
 {
 	bool success_flag = false;
-	unsigned int *largest_size_p = (unsigned int *) OpenSharedMemory (storage_p -> ags_largest_entry_memory_id, 0);
+	unsigned int *largest_size_p = (unsigned int *) OpenSharedMemory (storage_p -> ags_mapped_mem_p, 0);
 
 	if (largest_size_p)
 		{
 			*size_p =	*largest_size_p;
-
-			CloseSharedMemory (largest_size_p);
+			 
+			CloseSharedMemory (storage_p -> ags_mapped_mem_p, largest_size_p);
 			success_flag = true;
 		}
 	else
 		{
-			PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to open shared memory %d for largest size entry", storage_p -> ags_largest_entry_memory_id);
+			PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to open shared memory for largest size entry");
 		}
 
 	return success_flag;

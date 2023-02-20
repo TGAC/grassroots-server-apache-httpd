@@ -256,7 +256,7 @@ static bool AddServiceJobToAPRJobsManager (JobsManager *jobs_manager_p, uuid_t j
 								}
 							#endif
 
-							success_flag = AddObjectToAPRGlobalStorage (manager_p -> ajm_store_p, job_key, UUID_RAW_SIZE, value_p, value_length);
+							success_flag = AddObjectToAPRGlobalStorage (manager_p -> ajm_store_p, (const void *) &job_key, UUID_RAW_SIZE, value_p, value_length);
 
 							#if APR_JOBS_MANAGER_DEBUG >= STM_LEVEL_FINER
 								{
@@ -299,6 +299,7 @@ static ServiceJob *QueryServiceJobFromAprJobsManager (JobsManager *jobs_manager_
 	APRJobsManager *manager_p = (APRJobsManager *) jobs_manager_p;
 	ServiceJob *job_p = NULL;
 	unsigned char *value_p = NULL;
+	const void *key_p = (const void *) &job_key;
 
 	char uuid_s [UUID_STRING_BUFFER_SIZE];
 	ConvertUUIDToString (job_key, uuid_s);
@@ -307,7 +308,7 @@ static ServiceJob *QueryServiceJobFromAprJobsManager (JobsManager *jobs_manager_
 	PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "Looking for %s", uuid_s);
 	#endif
 
-	value_p = storage_callback_fn (manager_p -> ajm_store_p, job_key, UUID_RAW_SIZE);
+	value_p = storage_callback_fn (manager_p -> ajm_store_p, key_p, UUID_RAW_SIZE);
 
 	if (value_p)
 		{
@@ -400,13 +401,13 @@ apr_status_t CleanUpAPRJobsManager (void *value_p)
 
 
 
-static LinkedList *GetAllServiceJobsFromAprJobsManager (struct JobsManager *manager_p)
+static LinkedList *GetAllServiceJobsFromAprJobsManager (struct JobsManager *jobs_manager_p)
 {
 	LinkedList *jobs_p = AllocateLinkedList (FreeServiceJobNode);
 
 	if (jobs_p)
 		{
-			APRJobsManager *manager_p = (APRJobsManager *) manager_p;
+			APRJobsManager *manager_p = (APRJobsManager *) jobs_manager_p;
 			ap_socache_iterator_t *iterator_p = AddServiceJobFromSOCache;
 			GrassrootsServer *grassroots_p = GetGrassrootsServerFromJobsManager (& (manager_p -> ajm_base_manager));
 

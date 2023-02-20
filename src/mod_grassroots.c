@@ -14,7 +14,9 @@
 ** limitations under the License.
 */
 /* Include the required headers from httpd */
-#include <unistd.h>
+#ifdef UNIX
+	#include <unistd.h>
+#endif
 
 #include "apache_output_stream.h"
 #include "apr_jobs_manager.h"

@@ -74,7 +74,7 @@ typedef struct APRGlobalStorage
 	 * multi-process environment, this will be in shared
 	 * memory
 	 */
-	int ags_largest_entry_memory_id;
+	struct MappedMemory *ags_mapped_mem_p;
 
 	/** The httpd server. */
 	server_rec *ags_server_p;
