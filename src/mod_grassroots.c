@@ -1,12 +1,12 @@
 /*
 ** Copyright 2014-2016 The Earlham Institute
-** 
+**
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
 ** You may obtain a copy of the License at
-** 
+**
 **     http://www.apache.org/licenses/LICENSE-2.0
-** 
+**
 ** Unless required by applicable law or agreed to in writing, software
 ** distributed under the License is distributed on an "AS IS" BASIS,
 ** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -86,8 +86,9 @@ static const char *SetGrassrootsCacheProvider (cmd_parms *cmd_p, void *cfg_p, co
 static const char *SetGrassrootsServersManager (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
 static const char *SetGrassrootsJobsManager (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
 static const char *SetGrassrootsConfigFilename (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
-
 static const char *SetGrassrootsServiceConfigPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
+
+static const char *SetGrassrootsServicesPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
 static const char *SetGrassrootsReferencesPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
 
 
@@ -144,6 +145,7 @@ static const command_rec s_grassroots_directives [] =
 	AP_INIT_TAKE1 ("GrassrootsCache", SetGrassrootsCacheProvider, NULL, ACCESS_CONF, "The provider for the Jobs Cache"),
 	AP_INIT_TAKE1 ("GrassrootsConfig", SetGrassrootsConfigFilename, NULL, ACCESS_CONF, "The config file to use for this Grassroots Server"),
 	AP_INIT_TAKE1 ("GrassrootsServicesConfigPath", SetGrassrootsServiceConfigPath, NULL, ACCESS_CONF, "The path to the individual services config files"),
+	AP_INIT_TAKE1 ("GrassrootsServicesPath", SetGrassrootsServicesPath, NULL, ACCESS_CONF, "The path to the service module files"),
 	AP_INIT_TAKE1 ("GrassrootsReferenceServicesPath", SetGrassrootsReferencesPath, NULL, ACCESS_CONF, "The path to the referred service files"),
 	AP_INIT_TAKE1 ("GrassrootsRoot", SetGrassrootsRootPath, NULL, ACCESS_CONF, "The path to the Grassroots installation"),
 	AP_INIT_TAKE1 ("GrassrootsServersManager", SetGrassrootsServersManager, NULL, ACCESS_CONF, "The path to the Grassroots Servers Manager Module to use"),
@@ -282,6 +284,8 @@ static GrassrootsLocationConfig *CreateConfig (apr_pool_t *pool_p, server_rec *s
 							config_p -> glc_servers_manager_s = NULL;
 							config_p -> glc_config_s = NULL;
 							config_p -> glc_services_config_path_s = NULL;
+							config_p -> glc_services_path_s = NULL;
+							config_p -> glc_references_path_s = NULL;
 							config_p -> glc_references_path_s = NULL;
 							config_p -> glc_servers_p = servers_p;
 							config_p -> glc_server_p = server_p;
@@ -356,26 +360,34 @@ static void *MergeConfigs (apr_pool_t *pool_p, void *base_p, void *new_p)
 														{
 															if (CopyStringValue (pool_p, base_config_p -> glc_services_config_path_s, new_config_p -> glc_services_config_path_s, & (merged_config_p -> glc_services_config_path_s)))
 																{
-																	if (CopyStringValue (pool_p, base_config_p -> glc_references_path_s, new_config_p -> glc_references_path_s, & (merged_config_p -> glc_references_path_s)))
+																	if (CopyStringValue (pool_p, base_config_p -> glc_services_path_s, new_config_p -> glc_services_path_s, & (merged_config_p -> glc_services_path_s)))
 																		{
-																			apr_hash_t *merged_servers_p = apr_hash_overlay (pool_p, new_config_p -> glc_servers_p, base_config_p -> glc_servers_p);
-
-																			if (merged_servers_p)
+																			if (CopyStringValue (pool_p, base_config_p -> glc_references_path_s, new_config_p -> glc_references_path_s, & (merged_config_p -> glc_references_path_s)))
 																				{
-																					merged_config_p -> glc_servers_p = merged_servers_p;
-																					merged_config_p -> glc_server_p = new_config_p -> glc_server_p ? new_config_p -> glc_server_p : base_config_p -> glc_server_p;
+																					apr_hash_t *merged_servers_p = apr_hash_overlay (pool_p, new_config_p -> glc_servers_p, base_config_p -> glc_servers_p);
 
-																					return merged_config_p;
+																					if (merged_servers_p)
+																						{
+																							merged_config_p -> glc_servers_p = merged_servers_p;
+																							merged_config_p -> glc_server_p = new_config_p -> glc_server_p ? new_config_p -> glc_server_p : base_config_p -> glc_server_p;
+
+																							return merged_config_p;
+																						}
+																					else
+																						{
+																							ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to create merged grassroots servers hash table");
+																						}
+
 																				}
 																			else
 																				{
-																					ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to create merged grassroots servers hash table");
+																					ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to set merged config glc_references_path_s from \"%s\" and \"%s\"", base_config_p -> glc_services_config_path_s ? base_config_p -> glc_services_config_path_s : "NULL", new_config_p -> glc_services_config_path_s ? new_config_p -> glc_services_config_path_s : "NULL");
 																				}
 
-																		}
+																		}		/* if (CopyStringValue (pool_p, base_config_p -> glc_services_path_s, new_config_p -> glc_services_path_s, & (merged_config_p -> glc_services_path_s))) */
 																	else
 																		{
-																			ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to set merged config glc_references_path_s from \"%s\" and \"%s\"", base_config_p -> glc_services_config_path_s ? base_config_p -> glc_services_config_path_s : "NULL", new_config_p -> glc_services_config_path_s ? new_config_p -> glc_services_config_path_s : "NULL");
+																			ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to set merged config glc_services_path_s from \"%s\" and \"%s\"", base_config_p -> glc_services_path_s ? base_config_p -> glc_services_path_s : "NULL", new_config_p -> glc_services_path_s ? new_config_p -> glc_services_path_s : "NULL");
 																		}
 
 																}
@@ -642,6 +654,15 @@ static const char *SetGrassrootsServiceConfigPath (cmd_parms *cmd_p, void *cfg_p
 	GrassrootsLocationConfig *config_p = (GrassrootsLocationConfig *) cfg_p;
 
 	return SetGrassrootsConfigString (cmd_p, & (config_p -> glc_services_config_path_s), arg_s, config_p);
+}
+
+
+/* Handler for the "GrassrootsServicesPath" directive */
+static const char *SetGrassrootsServicesPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s)
+{
+	GrassrootsLocationConfig *config_p = (GrassrootsLocationConfig *) cfg_p;
+
+	return SetGrassrootsConfigString (cmd_p, & (config_p -> glc_services_path_s), arg_s, config_p);
 }
 
 
@@ -943,7 +964,8 @@ static GrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const lo
 
   					}		/* if (IsAPRServersManagerName (config_p -> glc_servers_manager_s)) */
 
-  				grassroots_p = AllocateGrassrootsServer (config_p -> glc_root_path_s, config_p -> glc_config_s, config_p -> glc_services_config_path_s, config_p -> glc_references_path_s, jobs_manager_p, jobs_manager_mem, & (servers_manager_p -> asm_base_manager), servers_manager_mem);
+  				grassroots_p = AllocateGrassrootsServer (config_p -> glc_root_path_s, config_p -> glc_config_s, config_p -> glc_services_config_path_s, config_p -> glc_services_path_s,
+  					config_p -> glc_references_path_s, jobs_manager_p, jobs_manager_mem, & (servers_manager_p -> asm_base_manager), servers_manager_mem);
 
   				if (grassroots_p)
   					{

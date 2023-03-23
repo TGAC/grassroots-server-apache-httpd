@@ -127,6 +127,14 @@ typedef struct
 
 
 	/**
+   * The path to the folder containing the service module files.
+   * If this is <code>NULL</code> then the default of
+   * "services" will be used.
+   */
+	char *glc_services_path_s;
+
+
+	/**
 	 * The path to the folder containing the reference service files.
 	 * If this is <code>NULL</code> then the default of
 	 * "references" will be used.
