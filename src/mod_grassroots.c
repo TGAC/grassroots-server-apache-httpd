@@ -91,6 +91,10 @@ static const char *SetGrassrootsServiceConfigPath (cmd_parms *cmd_p, void *cfg_p
 static const char *SetGrassrootsServicesPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
 static const char *SetGrassrootsReferencesPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
 
+static const char *SetGrassrootsServersManagerPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
+static const char *SetGrassrootsJobsManagerPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
+
+
 
 static void *CreateServerConfig (apr_pool_t *pool_p, server_rec *server_p);
 
@@ -692,6 +696,23 @@ static const char *SetGrassrootsReferencesPath (cmd_parms *cmd_p, void *cfg_p, c
 	GrassrootsLocationConfig *config_p = (GrassrootsLocationConfig *) cfg_p;
 
 	return SetGrassrootsConfigString (cmd_p, & (config_p -> glc_services_config_path_s), arg_s, config_p);
+}
+
+
+
+static const char *SetGrassrootsServersManagerPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s)
+{
+	GrassrootsLocationConfig *config_p = (GrassrootsLocationConfig *) cfg_p;
+
+	return SetGrassrootsConfigString (cmd_p, & (config_p -> glc_servers_path_s), arg_s, config_p);
+}
+
+
+static const char *SetGrassrootsJobsManagerPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s)
+{
+	GrassrootsLocationConfig *config_p = (GrassrootsLocationConfig *) cfg_p;
+
+	return SetGrassrootsConfigString (cmd_p, & (config_p -> glc_jobs_managers_path_s), arg_s, config_p);
 }
 
 
