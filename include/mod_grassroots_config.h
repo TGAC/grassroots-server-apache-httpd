@@ -141,6 +141,24 @@ typedef struct
 	 */
 	char *glc_references_path_s;
 
+
+
+	/**
+   * The path to the folder containing the available JobsManager
+   * module files. If this is <code>NULL</code> then the default of
+   * "jobs_managers" will be used.
+   */
+	char *glc_jobs_managers_path_s;
+
+
+	/**
+	 * The path to the folder containing the available ServersManager
+	 * module files. If this is <code>NULL</code> then the default of
+	 * "servers" will be used.
+	 */
+	char *glc_servers_path_s;
+
+
 	/**
 	 *  A lookup table where the keys are the paths for each Location and Directory directive
 	 *  and the values are the NamedGrassrootsServers associated with these
