@@ -143,6 +143,8 @@ static apr_status_t CleanUpPool (void *data_p);
 
 static GrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const location_s, GrassrootsLocationConfig *config_p);
 
+static void PrintConfigToLog (const char * const location_s, GrassrootsLocationConfig *config_p);
+
 
 static const command_rec s_grassroots_directives [] =
 {
@@ -155,7 +157,7 @@ static const command_rec s_grassroots_directives [] =
 	AP_INIT_TAKE1 ("GrassrootsServersManager", SetGrassrootsServersManager, NULL, ACCESS_CONF, "The path to the Grassroots Servers Manager Module to use"),
 	AP_INIT_TAKE1 ("GrassrootsJobManager", SetGrassrootsJobsManager, NULL, ACCESS_CONF, "The path to the Grassroots Jobs Manager Module to use"),
 	AP_INIT_TAKE1 ("GrassrootsServersManagersPath", SetGrassrootsServersManagerPath, NULL, ACCESS_CONF, "The path to the Grassroots Servers modules path"),
-	AP_INIT_TAKE1 ("GrassrootsJobManagersManager", SetGrassrootsJobsManagerPath, NULL, ACCESS_CONF, "The path to the Grassroots Jobs Manager Module to use"),
+	AP_INIT_TAKE1 ("GrassrootsJobManagersPath", SetGrassrootsJobsManagerPath, NULL, ACCESS_CONF, "The path to the Grassroots Jobs Manager Module to use"),
 
 	{ NULL }
 };
@@ -1020,13 +1022,39 @@ static GrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const lo
 
   						apr_pool_cleanup_register (pool_p, grassroots_p, CleanUpGrassrootServer, apr_pool_cleanup_null);
 
+							ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "AllocateGrassrootsServer succeeded for \"%s\"", location_s);
+							PrintConfigToLog (location_s, config_p);
 
   					}
+					else
+						{
+							ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "AllocateGrassrootsServer failed for \"%s\"", location_s);
+							PrintConfigToLog (location_s, config_p);
+					}
   			}
 
   	}		/* if (!grassroots_p) */
 
+
+
+
 	return grassroots_p;
+}
+
+static void PrintConfigToLog (const char * const location_s, GrassrootsLocationConfig *config_p)
+{
+	ap_log_error (APLOG_MARK, APLOG_CRIT, APR_SUCCESS, NULL, "Location \"%s\"", location_s);
+	ap_log_error (APLOG_MARK, APLOG_CRIT, APR_SUCCESS, NULL, "config_p -> glc_config_s \"%s\"", config_p -> glc_config_s);
+	ap_log_error (APLOG_MARK, APLOG_CRIT, APR_SUCCESS, NULL, "config_p -> glc_context_s \"%s\"", config_p -> glc_context_s);
+	ap_log_error (APLOG_MARK, APLOG_CRIT, APR_SUCCESS, NULL, "config_p -> glc_jobs_managers_path_s \"%s\"", config_p -> glc_jobs_managers_path_s);
+	ap_log_error (APLOG_MARK, APLOG_CRIT, APR_SUCCESS, NULL, "config_p -> glc_jobs_manager_s \"%s\"", config_p -> glc_jobs_manager_s);
+	ap_log_error (APLOG_MARK, APLOG_CRIT, APR_SUCCESS, NULL, "config_p -> glc_provider_name_s \"%s\"", config_p -> glc_provider_name_s);
+	ap_log_error (APLOG_MARK, APLOG_CRIT, APR_SUCCESS, NULL, "config_p -> glc_references_path_s \"%s\"", config_p -> glc_references_path_s);
+	ap_log_error (APLOG_MARK, APLOG_CRIT, APR_SUCCESS, NULL, "config_p -> glc_root_path_s \"%s\"", config_p -> glc_root_path_s);
+	ap_log_error (APLOG_MARK, APLOG_CRIT, APR_SUCCESS, NULL, "config_p -> glc_servers_manager_s \"%s\"", config_p -> glc_servers_manager_s);
+	ap_log_error (APLOG_MARK, APLOG_CRIT, APR_SUCCESS, NULL, "config_p -> glc_server_p \"%ld\"", config_p -> glc_server_p);
+	ap_log_error (APLOG_MARK, APLOG_CRIT, APR_SUCCESS, NULL, "config_p -> glc_services_config_path_s \"%s\"", config_p -> glc_services_config_path_s);
+	ap_log_error (APLOG_MARK, APLOG_CRIT, APR_SUCCESS, NULL, "config_p -> glc_services_path_s \"%s\"", config_p -> glc_services_path_s);
 }
 
 
