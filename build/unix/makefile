@@ -2,6 +2,7 @@ NAME 		= grassroots
 DIR_BUILD :=  $(realpath $(dir $(lastword $(MAKEFILE_LIST)))/$(PLATFORM))
 DIR_SRC := $(realpath $(DIR_BUILD)/../../../src)
 DIR_INCLUDE := $(realpath $(DIR_BUILD)/../../../include)
+DIR_CONF := ../../../conf
 
 ifeq ($(DIR_BUILD_CONFIG),)
 export DIR_BUILD_CONFIG = $(realpath $(DIR_BUILD)/../../../../../build-config/unix/)
@@ -19,13 +20,13 @@ DIR_APACHE_CONF = /etc/apache2/mods-enabled
 DIR_APACHE_ENVVARS := /etc/apache2/
 APACHE_SET = true
 APXS = apxs
-MODULE_LOAD_FILE := ../../conf/load_grassroots_for_packaged_apache.conf
+MODULE_LOAD_FILE := $(DIR_CONF)/load_grassroots_for_packaged_apache.conf
 else
 DIR_APACHE_MODULES := $(DIR_APACHE)/modules
 DIR_APACHE_INC := $(DIR_APACHE)/include
 DIR_APACHE_CONF = $(DIR_APACHE)/conf/extra
 DIR_APACHE_ENVVARS := $(DIR_APACHE)/bin
-MODULE_LOAD_FILE := ../../conf/load_grassroots_for_compiled_apache.conf
+MODULE_LOAD_FILE := $(DIR_CONF)/oad_grassroots_for_compiled_apache.conf
 APXS = $(DIR_APACHE)/bin/apxs
 endif
 
@@ -142,23 +143,23 @@ install: all conf envvars
 	$(SUDO) cp $(DIR_SRC)/.libs/mod_$(NAME).so $(DIR_APACHE_MODULES)
 	#if [ -d $(DIR_APACHE)/conf/conf.d ]; then $(DIR_APACHE_CONF)=$(DIR_APACHE)/conf/conf.d; fi
 	if [ ! -e $(DIR_APACHE_CONF)/grassroots.conf ]; then \
-		$(SUDO) cp ../../conf/grassroots.conf $(DIR_APACHE_CONF); \
+		$(SUDO) cp $(DIR_CONF)/grassroots.conf $(DIR_APACHE_CONF); \
 	fi
 
 conf:
-	if [ ! -e ../../conf/grassroots.conf ]; then \
-		cat $(MODULE_LOAD_FILE) > ../../conf/grassroots.conf; \
-		cat ../../conf/httpd-grassroots.conf >> ../../conf/grassroots.conf; \
-		sed -i "s/DIR_GRASSROOTS_INSTALL/$(ESCAPED_DIR_GRASSROOTS_INSTALL)/g" ../../conf/grassroots.conf; \
+	if [ ! -e $(DIR_CONF)/grassroots.conf ]; then \
+		cat $(MODULE_LOAD_FILE) > $(DIR_CONF)/grassroots.conf; \
+		cat $(DIR_CONF)/httpd-grassroots.conf >> $(DIR_CONF)/conf/grassroots.conf; \
+		sed -i "s/DIR_GRASSROOTS_INSTALL/$(ESCAPED_DIR_GRASSROOTS_INSTALL)/g" $(DIR_CONF)/grassroots.conf; \
 	fi
 	
 
 envvars:
 	if [ ! -e  $(DIR_APACHE_ENVVARS)/envvars_grassroots ]; then \
-		cp ../../conf/envvars ../../conf/envvars_new; \
-		sed -i "s/DIR_GRASSROOTS_EXTRAS/$(ESCAPED_DIR_GRASSROOTS_EXTRAS)/g" ../../conf/envvars_new; \
-		sed -i "s/DIR_GRASSROOTS/$(ESCAPED_DIR_GRASSROOTS_INSTALL)/g" ../../conf/envvars_new; \
-		$(SUDO) cp ../../conf/envvars_new $(DIR_APACHE_ENVVARS)/envvars_grassroots; \
+		cp $(DIR_CONF)/envvars $(DIR_CONF)/envvars_new; \
+		sed -i "s/DIR_GRASSROOTS_EXTRAS/$(ESCAPED_DIR_GRASSROOTS_EXTRAS)/g" $(DIR_CONF)/envvars_new; \
+		sed -i "s/DIR_GRASSROOTS/$(ESCAPED_DIR_GRASSROOTS_INSTALL)/g" $(DIR_CONF)/envvars_new; \
+		$(SUDO) cp $(DIR_CONF)/envvars_new $(DIR_APACHE_ENVVARS)/envvars_grassroots; \
 		$(SUDO) sed -i -e '$$a\' -e '\n. $(DIR_APACHE_ENVVARS)/envvars_grassroots\n' $(DIR_APACHE_ENVVARS)/envvars; \
 	fi
 
