@@ -26,7 +26,7 @@ DIR_APACHE_MODULES := $(DIR_APACHE)/modules
 DIR_APACHE_INC := $(DIR_APACHE)/include
 DIR_APACHE_CONF = $(DIR_APACHE)/conf/extra
 DIR_APACHE_ENVVARS := $(DIR_APACHE)/bin
-MODULE_LOAD_FILE := $(DIR_CONF)/oad_grassroots_for_compiled_apache.conf
+MODULE_LOAD_FILE := $(DIR_CONF)/load_grassroots_for_compiled_apache.conf
 APXS = $(DIR_APACHE)/bin/apxs
 endif
 
@@ -133,7 +133,8 @@ env:
 	@echo "USE_COMPRESSION $(USE_COMPRESSION)"
 
 all:
-	$(APXS) -n $(NAME) $(INCLUDES) -D UNIX=1 -D BUILD=$(BUILD) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -c $(SRCS)
+	@echo "	$(APXS) -n $(NAME) $(INCLUDES) -D BUILD=$(BUILD) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -c $(SRCS)"
+	$(APXS) -n $(NAME) $(INCLUDES) -D BUILD=$(BUILD) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -c $(SRCS)
 		
 clean:
 	@rm -fr src/*.o src/*.lo src/*.slo src/*.la
