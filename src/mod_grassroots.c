@@ -52,6 +52,7 @@
 #include "util_mutex.h"
 #include "async_task.h"
 
+#include "unistd.h"
 
 #ifdef _DEBUG
 	#define MOD_GRASSROOTS_DEBUG	(STM_LEVEL_INFO)
