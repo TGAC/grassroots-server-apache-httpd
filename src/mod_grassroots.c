@@ -1023,7 +1023,7 @@ static GrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const lo
 
   						apr_pool_cleanup_register (pool_p, grassroots_p, CleanUpGrassrootServer, apr_pool_cleanup_null);
 
-							ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "AllocateGrassrootsServer succeeded for \"%s\"", location_s);
+							ap_log_error (APLOG_MARK, APLOG_INFO, APR_SUCCESS, NULL, "AllocateGrassrootsServer succeeded for \"%s\"", location_s);
 							PrintConfigToLog (location_s, config_p);
 
   					}
