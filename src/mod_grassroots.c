@@ -55,7 +55,7 @@
 #include "unistd.h"
 
 #ifdef _DEBUG
-	#define MOD_GRASSROOTS_DEBUG	(STM_LEVEL_INFO)
+	#define MOD_GRASSROOTS_DEBUG	(STM_LEVEL_FINE)
 #else
 	#define MOD_GRASSROOTS_DEBUG	(STM_LEVEL_NONE)
 #endif
@@ -859,6 +859,11 @@ static bool AddLocationConfig (apr_pool_t *pool_p, const char *location_s, Grass
 static int GrassrootsHandler (request_rec *req_p)
 {
 	int res = DECLINED;
+
+	if (req_p -> user)
+		{
+			PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "request from user \"%s\"\n", req_p -> user);
+		}
 
   /* First off, we need to check if this is a call for the grassroots handler.
    * If it is, we accept it and do our things, it not, we simply return DECLINED,
