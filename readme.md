@@ -80,7 +80,9 @@ The available configuration properties are described below:
 
 An example file is listed below that specfies that Grassoots is installed in the 
 ```/opt/grassroots``` folder and that it Grassroots will be used for requests to 
-*/grassroots/controller*.
+*/grassroots/controller*. The global configuration file to be used is ```my_config```
+and the folder containing the services configuration files is called 
+```my_config_files```.
 
 ~~~{conf}
 #
@@ -101,15 +103,19 @@ CacheSocacheMaxSize 102400
 #
 # Set the uri for the Grassroots infrastructure requests
 # to /grassroots/controller
-
 <LocationMatch "/grassroots/controller">
 	
-	# Let Grassroots handle these requests, this entry is required for the 
-	# Grassroots to be used
+	# Let Grassroots handle these requests
 	SetHandler grassroots-handler
 	
 	# The path to the Grassroots root directory 
-	GrassrootsRoot /opt//grassroots
+	GrassrootsRoot /opt/grassroots
+
+	# The global configuration file to use
+	GrassrootsConfig my_config
+
+	# The path to the service configuration files
+	GrassrootsServicesConfigPath my_config_files
 </LocationMatch>
 ~~~
 
