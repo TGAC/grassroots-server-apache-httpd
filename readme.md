@@ -1,20 +1,32 @@
 # Apache httpd module {#apache_server_guide}
 
-This module allows the Grassroots infrastructure to be used with an [Apache httpd](http://httpd.apache.org) web server. This means that the Grassroots infrastructure can take advantage of all of the functionality that httpd provides.
+This module allows the Grassroots infrastructure to be used with an 
+[Apache httpd](http://httpd.apache.org) web server. This means that the Grassroots 
+infrastructure can take advantage of all of the functionality that httpd provides.
 
 ## Installation
 
-To build this module, you need the [grassroots core](https://github.com/TGAC/grassroots-core) and [grassroots build config](https://github.com/TGAC/grassroots-build-config) installed and configured. 
+To build this module, you need the [grassroots core](https://github.com/TGAC/grassroots-core)
+ and [grassroots build config](https://github.com/TGAC/grassroots-build-config) installed and 
+configured. 
 
-The files to build the Grassroots module are in the ```build/<platform>``` directory. 
+The files to build the Grassroots module are in the `build/unix/<platform>` directory. 
 
-### Linux
+### Linux and Mac
 
-If you enter this directory 
+The platform build files are in the `unix/<PLATFORM>' directory where platform is either *linux*
+or *mac*. If you enter the appropriate directory 
 
 ```
 cd build/unix/linux
 ```
+
+or
+
+```
+cd build/unix/mac
+```
+
 
 you can then build the service by typing
 
@@ -31,6 +43,13 @@ make install
 to install the module into the appropriate httpd installation allowing the Grassroots system to
  be used in conjunction with it.
 
+
+### Windows
+
+For Windows use the visual studio project in the `build/windows` folder.
+
+
+
 ## Configuration
 
 As well as installing the module, httpd requires a couple of alterations to allow the Grassroots
@@ -39,15 +58,15 @@ As well as installing the module, httpd requires a couple of alterations to allo
 ### Module configuration file
 
 The first change is to set up the module configuration. This is done using a standard httpd 
-configuration file and an example is at ```conf/grassroots.conf``` in this repository.
+configuration file and an example is at `conf/grassroots.conf` in this repository.
 It requires some modules to provide the caching functionality to store job data between requests 
 in a multi-process and multi-threaded environment
 
 The only parts that a server administrator would need to change are what uri to use for the 
 Grassroots system and the directory in which the Grassroots system is installed.
 
-The uri is set using the standard httpd directives such as ```<Location>``` and 
-```<LocationMatch>``` and the installation directory is specified using the ```GrassrootsRoot```
+The uri is set using the standard httpd directives such as `<Location>` and 
+`<LocationMatch>` and the installation directory is specified using the `GrassrootsRoot`
  directive which takes a string denoting the path. The content of an example configuration is 
 file is shown below.
 
@@ -56,33 +75,33 @@ The available configuration properties are described below:
  * **GrassrootsRoot***: This is required and is the path to the Grassroots installation
  * **GrassrootsConfig**: The config file to use for this Grassroots Server. If omitted, this 
  will default to being *grassroots.config* within the directory specified by the 
- ```GrassrootsRoot``` directive.
+ `GrassrootsRoot` directive.
  * **GrassrootsServicesConfigPath**: The path to the individual services config files. If 
  omitted, this will default to being *config* within the directory specified by the
- ```GrassrootsRoot``` directive.
+ `GrassrootsRoot` directive.
  * **GrassrootsServicesPath**: The path to the service module files. If 
  omitted, this will default to being *services* within the directory specified by the
- ```GrassrootsRoot``` directive.
+ `GrassrootsRoot` directive.
  * **GrassrootsReferenceServicesPath**: The path to the referred service files. If 
  omitted, this will default to being *references* within the directory specified by the
- ```GrassrootsRoot``` directive.
+ `GrassrootsRoot` directive.
  * **GrassrootsServersManager**: The path to the Grassroots Servers Manager Module to use. 
  Leave this blank to use the default. 
  * **GrassrootsServersManagersPath**: The path to the service module files. If 
  omitted, this will default to being *servers* within the directory specified by the
- ```GrassrootsRoot``` directive.
+ `GrassrootsRoot` directive.
  * **GrassrootsJobManager**: The path to the Grassroots Jobs Manager Module to use
  Leave this blank to use the default. 
  * **GrassrootsJobsManagersPath**: The path to the service module files. If 
  omitted, this will default to being *jobs_managers* within the directory specified by the
- ```GrassrootsRoot``` directive.
+ `GrassrootsRoot` directive.
 
 
 An example file is listed below that specfies that Grassoots is installed in the 
-```/opt/grassroots``` folder and that it Grassroots will be used for requests to 
-*/grassroots/controller*. The global configuration file to be used is ```my_config```
+`/opt/grassroots` folder and that it Grassroots will be used for requests to 
+*/grassroots/controller*. The global configuration file to be used is `my_config`
 and the folder containing the services configuration files is called 
-```my_config_files```.
+`my_config_files`.
 
 ~~~{conf}
 #
@@ -122,8 +141,8 @@ CacheSocacheMaxSize 102400
 ### Updating envvars
 
 The Apache httpd server also needs to have access to the paths where the Grassroots 
-infrastructure and its dependencies are located. This is done be editing the ```envvars``` 
-file that is part of the httpd distribution and is normally located at ```bin/envvars```.
+infrastructure and its dependencies are located. This is done be editing the `envvars` 
+file that is part of the httpd distribution and is normally located at `bin/envvars`.
 
 ~~~{properties}
 # Begin Grassroots
