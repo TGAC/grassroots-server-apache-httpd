@@ -1,4 +1,4 @@
-# Apache httpd module {#apache_server_guide}
+# Apache httpd module
 
 This module allows the Grassroots infrastructure to be used with an 
 [Apache httpd](http://httpd.apache.org) web server. This means that the Grassroots 
@@ -52,8 +52,8 @@ For Windows use the visual studio project in the `build/windows` folder.
 
 ## Configuration
 
-As well as installing the module, httpd requires a couple of alterations to allow the Grassroots
- system to be available.
+As well as installing the module, httpd requires a couple of alterations to 
+allow the Grassroots system to be available.
 
 ### Module configuration file
 
