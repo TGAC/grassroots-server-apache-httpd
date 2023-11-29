@@ -146,6 +146,9 @@ static GrassrootsServer *GetOrCreateNamedGrassrootsServer (const char * const lo
 
 static void PrintConfigToLog (const char * const location_s, GrassrootsLocationConfig *config_p);
 
+static int PrintAPRTableToLog (void *req_p, const char *key_s, const char *value_s);
+
+
 
 static const command_rec s_grassroots_directives [] =
 {
@@ -860,11 +863,6 @@ static int GrassrootsHandler (request_rec *req_p)
 {
 	int res = DECLINED;
 
-	if (req_p -> user)
-		{
-			PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "request from user \"%s\"\n", req_p -> user);
-		}
-
   /* First off, we need to check if this is a call for the grassroots handler.
    * If it is, we accept it and do our things, it not, we simply return DECLINED,
    * and Apache will try somewhere else.
@@ -873,6 +871,21 @@ static int GrassrootsHandler (request_rec *req_p)
   	{
   		json_t *json_req_p = NULL;
   		char *grassroots_uri_s = NULL;
+
+
+  		if (req_p -> user)
+  			{
+  				PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "request from user \"%s\"\n", req_p -> user);
+  			}
+
+  		if (req_p -> headers_in)
+  			{
+  				PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "BEGIN headers in");
+  				apr_table_do (PrintAPRTableToLog, req_p, req_p -> headers_in, NULL);
+  				PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "END headers in");
+  			}
+
+
 
   		switch (req_p -> method_number)
 				{
@@ -1085,6 +1098,13 @@ static int ProcessLocationsHashEntry (void *data_p, const void *key_p, apr_ssize
 }
 
 
+
+static int PrintAPRTableToLog (void *req_p, const char *key_s, const char *value_s)
+{
+	PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "\"%s\": \"%s\"", key_s, value_s);
+
+	return TRUE;
+}
 
 
 
