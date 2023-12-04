@@ -94,6 +94,7 @@ static const char *SetGrassrootsReferencesPath (cmd_parms *cmd_p, void *cfg_p, c
 
 static const char *SetGrassrootsServersManagerPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
 static const char *SetGrassrootsJobsManagerPath (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
+static const char *SetGrassrootsUserAuthSystem (cmd_parms *cmd_p, void *cfg_p, const char *arg_s);
 
 
 
@@ -162,6 +163,7 @@ static const command_rec s_grassroots_directives [] =
 	AP_INIT_TAKE1 ("GrassrootsJobManager", SetGrassrootsJobsManager, NULL, ACCESS_CONF, "The path to the Grassroots Jobs Manager Module to use"),
 	AP_INIT_TAKE1 ("GrassrootsServersManagersPath", SetGrassrootsServersManagerPath, NULL, ACCESS_CONF, "The path to the Grassroots Servers modules path"),
 	AP_INIT_TAKE1 ("GrassrootsJobManagersPath", SetGrassrootsJobsManagerPath, NULL, ACCESS_CONF, "The path to the Grassroots Jobs Manager Module to use"),
+	AP_INIT_TAKE1 ("GrassrootsUserAuth", SetGrassrootsUserAuthSystem, NULL, ACCESS_CONF, "Set the user authentication system to use"),
 
 	{ NULL }
 };
@@ -171,6 +173,25 @@ static const char * const s_jobs_manager_cache_id_s = "grassroots-jobs-socache";
 
 static const char * const s_servers_manager_cache_id_s = "grassroots-servers-socache";
 
+
+
+static UserDetails *GetUserDetailsFromBasicAuth (request_rec *req_p);
+static UserDetails *GetUserDetailsFromOIDC (request_rec *req_p);
+
+
+typedef struct UserAuthSystem
+{
+	const char *uas_name_s;
+	UserDetails *(*uas_get_user_fn) (request_rec *req_p);
+} UserAuthSystem;
+
+
+static UserAuthSystem *s_user_auth_systems_pp [] =
+{
+	{ "basic", GetUserDetailsFromBasicAuth },
+	{ "openid", GetUserDetailsFromOIDC },
+	NULL
+};
 
 
 /* Define our module as an entity and assign a function for registering hooks  */
@@ -299,7 +320,8 @@ static GrassrootsLocationConfig *CreateConfig (apr_pool_t *pool_p, server_rec *s
 							config_p -> glc_services_path_s = NULL;
 							config_p -> glc_references_path_s = NULL;
 							config_p -> glc_jobs_managers_path_s = NULL;
-							config_p -> glc_servers_path_s = NULL;
+							config_p -> glc_servers_path_s = *s_user_auth_systems_ss;
+							config_p -> glc_user_auth_system_s = NULL;
 							config_p -> glc_servers_p = servers_p;
 							config_p -> glc_server_p = server_p;
 						}
@@ -382,24 +404,35 @@ static void *MergeConfigs (apr_pool_t *pool_p, void *base_p, void *new_p)
 																						{
 																							if (CopyStringValue (pool_p, base_config_p -> glc_servers_path_s, new_config_p -> glc_servers_path_s, & (merged_config_p -> glc_servers_path_s)))
 																								{
-																									apr_hash_t *merged_servers_p = apr_hash_overlay (pool_p, new_config_p -> glc_servers_p, base_config_p -> glc_servers_p);
-
-																									if (merged_servers_p)
+																									if (CopyStringValue (pool_p, base_config_p -> glc_user_auth_system_s, new_config_p -> glc_user_auth_system_s, & (merged_config_p -> glc_user_auth_system_s)))
 																										{
-																											merged_config_p -> glc_servers_p = merged_servers_p;
-																											merged_config_p -> glc_server_p = new_config_p -> glc_server_p ? new_config_p -> glc_server_p : base_config_p -> glc_server_p;
+																											apr_hash_t *merged_servers_p = apr_hash_overlay (pool_p, new_config_p -> glc_servers_p, base_config_p -> glc_servers_p);
 
-																											return merged_config_p;
-																										}
+																											if (merged_servers_p)
+																												{
+																													merged_config_p -> glc_servers_p = merged_servers_p;
+																													merged_config_p -> glc_server_p = new_config_p -> glc_server_p ? new_config_p -> glc_server_p : base_config_p -> glc_server_p;
+
+																													return merged_config_p;
+																												}
+																											else
+																												{
+																													ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to create merged grassroots servers hash table");
+																												}
+
+																										}		/* if (CopyStringValue (pool_p, base_config_p -> glc_user_auth_system_s, new_config_p -> glc_user_auth_system_s, & (merged_config_p -> glc_user_auth_system_s))) */
 																									else
 																										{
-																											ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to create merged grassroots servers hash table");
+																											ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to set merged config glc_user_auth_system_s from \"%s\" and \"%s\"", base_config_p -> glc_user_auth_system_s ? base_config_p -> glc_user_auth_system_s : "NULL", new_config_p -> glc_user_auth_system_s ? new_config_p -> glc_user_auth_system_s : "NULL");
 																										}
+
+
+
 
 																								}
 																							else
 																								{
-																									ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to set merged config glc_servers_path_s from \"%s\" and \"%s\"", base_config_p -> glc_servers_path_s ? base_config_p -> glc_jobs_managers_path_s : "NULL", new_config_p -> glc_servers_path_s ? new_config_p -> glc_servers_path_s : "NULL");
+																									ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to set merged config glc_servers_path_s from \"%s\" and \"%s\"", base_config_p -> glc_servers_path_s ? base_config_p -> glc_servers_path_s : "NULL", new_config_p -> glc_servers_path_s ? new_config_p -> glc_servers_path_s : "NULL");
 																								}
 
 																						}
@@ -411,7 +444,7 @@ static void *MergeConfigs (apr_pool_t *pool_p, void *base_p, void *new_p)
 																				}
 																			else
 																				{
-																					ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to set merged config glc_references_path_s from \"%s\" and \"%s\"", base_config_p -> glc_services_config_path_s ? base_config_p -> glc_services_config_path_s : "NULL", new_config_p -> glc_services_config_path_s ? new_config_p -> glc_services_config_path_s : "NULL");
+																					ap_log_error (APLOG_MARK, APLOG_CRIT, APR_EGENERAL, NULL, "failed to set merged config glc_references_path_s from \"%s\" and \"%s\"", base_config_p -> glc_references_path_s ? base_config_p -> glc_references_path_s : "NULL", new_config_p -> glc_references_path_s ? new_config_p -> glc_references_path_s : "NULL");
 																				}
 
 																		}		/* if (CopyStringValue (pool_p, base_config_p -> glc_services_path_s, new_config_p -> glc_services_path_s, & (merged_config_p -> glc_services_path_s))) */
@@ -499,7 +532,7 @@ static void GrassrootsChildInit (apr_pool_t *pool_p, server_rec *server_p)
 						{
 							/* Mark the streams for deletion when the server pool expires */
 							SetDefaultErrorStream (error_p);
-							apr_pool_cleanup_register (pool_p, error_p, CleanUpOutputStream, apr_pool_cleanup_null);
+							apr_pooNULLl_cleanup_register (pool_p, error_p, CleanUpOutputStream, apr_pool_cleanup_null);
 
 							/* Do any clean up required by the running of asynchronous tasks */
 							apr_pool_cleanup_register (pool_p, NULL, CleanUpTasks, apr_pool_cleanup_null);
@@ -722,6 +755,14 @@ static const char *SetGrassrootsJobsManagerPath (cmd_parms *cmd_p, void *cfg_p, 
 }
 
 
+static const char *SetGrassrootsUserAuthSystem (cmd_parms *cmd_p, void *cfg_p, const char *arg_s)
+{
+	GrassrootsLocationConfig *config_p = (GrassrootsLocationConfig *) cfg_p;
+
+	return SetGrassrootsConfigString (cmd_p, & (config_p -> glc_user_auth_system_s), arg_s, config_p);
+}
+
+
 static apr_status_t CleanUpTasks (void *value_p)
 {
 	apr_status_t status = CloseAllAsyncTasks () ? APR_SUCCESS : APR_EGENERAL;
@@ -856,6 +897,47 @@ static bool AddLocationConfig (apr_pool_t *pool_p, const char *location_s, Grass
 }
 
 
+static UserDetails *GetUserDetailsFromOIDC (request_rec *req_p)
+{
+	UserDetails *user_p = NULL;
+
+	if (req_p -> headers_in)
+		{
+			const char *name_s = apr_table_get (req_p -> headers_in, "OIDC_CLAIM_name");
+			const char *org_s = apr_table_get (req_p -> headers_in, "OIDC_CLAIM_organization");
+			const char *email_s = apr_table_get (req_p -> headers_in, "OIDC_CLAIM_email");
+
+		}
+
+
+	return user_p;
+}
+
+
+static UserDetails *GetUserDetailsFromBasicAuth (request_rec *req_p)
+{
+	UserDetails *user_p = NULL;
+
+	if (req_p -> user)
+		{
+			PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "request from user \"%s\"\n", req_p -> user);
+
+			/** see if it is a username or an email */
+			if (strchr (req_p -> user, '@'))
+				{
+
+				}
+			else
+				{
+
+				}
+		}
+
+
+	return user_p;
+}
+
+
 /* The handler function for our module.
  * This is where all the fun happens!
  */
@@ -911,7 +993,37 @@ static int GrassrootsHandler (request_rec *req_p)
 					if (grassroots_p)
 						{
 							const char *error_s = NULL;
-							json_t *res_p = ProcessServerJSONMessage (grassroots_p, json_req_p, &error_s);
+							UserDetails *user_p = NULL;
+							json_t *res_p = NULL;
+
+							if (config_p -> glc_user_auth_system_s)
+								{
+									UserAuthSystem **user_auth_systems_pp = s_user_auth_systems_pp;
+
+									while (*user_auth_systems_pp)
+										{
+											if (Stricmp ((*user_auth_systems_pp) -> uas_name_s, config_p -> glc_user_auth_system_s) == 0)
+												{
+													user_p = (*user_auth_systems_pp) -> uas_get_user_fn (req_p);
+
+													if (!user_p)
+														{
+															PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to get user");
+														}
+
+													*user_auth_systems_pp = NULL;
+												}
+											else
+												{
+													++ user_auth_systems_pp;
+												}
+										}
+
+								}
+
+
+
+							res_p = ProcessServerJSONMessage (grassroots_p, json_req_p, user_p, &error_s);
 
 							if (res_p)
 								{

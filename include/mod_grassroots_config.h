@@ -160,6 +160,13 @@ typedef struct
 
 
 	/**
+	 * This specifies the system that has been used for any
+	 * authentication and authoriziation of the current user
+	 */
+	char *glc_user_auth_system_s;
+
+
+	/**
 	 *  A lookup table where the keys are the paths for each Location and Directory directive
 	 *  and the values are the NamedGrassrootsServers associated with these
 	 */
