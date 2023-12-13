@@ -150,6 +150,9 @@ static void PrintConfigToLog (const char * const location_s, GrassrootsLocationC
 static int PrintAPRTableToLog (void *req_p, const char *key_s, const char *value_s);
 
 
+static User *GetUserFromBasicAuth (request_rec *req_p, GrassrootsServer *grassroots_p);
+static User *GetUserFromOIDC (request_rec *req_p, GrassrootsServer *grassroots_p);
+
 
 static const command_rec s_grassroots_directives [] =
 {
@@ -175,22 +178,22 @@ static const char * const s_servers_manager_cache_id_s = "grassroots-servers-soc
 
 
 
-static UserDetails *GetUserDetailsFromBasicAuth (request_rec *req_p);
-static UserDetails *GetUserDetailsFromOIDC (request_rec *req_p);
 
 
 typedef struct UserAuthSystem
 {
 	const char *uas_name_s;
-	UserDetails *(*uas_get_user_fn) (request_rec *req_p);
+	User *(*uas_get_user_fn) (request_rec *req_p, GrassrootsServer *grassroots_p);
 } UserAuthSystem;
 
 
-static UserAuthSystem *s_user_auth_systems_pp [] =
+
+#define NUM_AUTH_SYSTEMS (2)
+
+static UserAuthSystem s_user_auth_systems_p [NUM_AUTH_SYSTEMS] =
 {
-	{ "basic", GetUserDetailsFromBasicAuth },
-	{ "openid", GetUserDetailsFromOIDC },
-	NULL
+	{ "basic", GetUserFromBasicAuth },
+	{ "openid", GetUserFromOIDC }
 };
 
 
@@ -320,7 +323,7 @@ static GrassrootsLocationConfig *CreateConfig (apr_pool_t *pool_p, server_rec *s
 							config_p -> glc_services_path_s = NULL;
 							config_p -> glc_references_path_s = NULL;
 							config_p -> glc_jobs_managers_path_s = NULL;
-							config_p -> glc_servers_path_s = *s_user_auth_systems_ss;
+							config_p -> glc_servers_path_s = NULL;
 							config_p -> glc_user_auth_system_s = NULL;
 							config_p -> glc_servers_p = servers_p;
 							config_p -> glc_server_p = server_p;
@@ -532,7 +535,7 @@ static void GrassrootsChildInit (apr_pool_t *pool_p, server_rec *server_p)
 						{
 							/* Mark the streams for deletion when the server pool expires */
 							SetDefaultErrorStream (error_p);
-							apr_pooNULLl_cleanup_register (pool_p, error_p, CleanUpOutputStream, apr_pool_cleanup_null);
+							apr_pool_cleanup_register (pool_p, error_p, CleanUpOutputStream, apr_pool_cleanup_null);
 
 							/* Do any clean up required by the running of asynchronous tasks */
 							apr_pool_cleanup_register (pool_p, NULL, CleanUpTasks, apr_pool_cleanup_null);
@@ -897,16 +900,44 @@ static bool AddLocationConfig (apr_pool_t *pool_p, const char *location_s, Grass
 }
 
 
-static UserDetails *GetUserDetailsFromOIDC (request_rec *req_p)
+static User *GetUserFromOIDC (request_rec *req_p, GrassrootsServer *grassroots_p)
 {
-	UserDetails *user_p = NULL;
+	User *user_p = NULL;
 
 	if (req_p -> headers_in)
 		{
 			const char *name_s = apr_table_get (req_p -> headers_in, "OIDC_CLAIM_name");
 			const char *org_s = apr_table_get (req_p -> headers_in, "OIDC_CLAIM_organization");
 			const char *email_s = apr_table_get (req_p -> headers_in, "OIDC_CLAIM_email");
+			const char *forename_s = NULL;
+			const char *surname_s = NULL;
 
+			if (name_s)
+				{
+					/*
+					 * Try and get the forename and surname(s)
+					 */
+					char *space_p = strchr (name_s, ' ');
+
+					if (space_p)
+						{
+							surname_s = space_p + 1;
+							forename_s = CopyToNewString (name_s, space_p - name_s, true);
+
+							if (!forename_s)
+								{
+
+								}
+
+						}
+				}
+
+			user_p = AllocateUser (NULL, email_s, forename_s, surname_s, org_s, NULL);
+
+			if (!user_p)
+				{
+  				PrintErrors (STM_LEVEL_FINE, __FILE__, __LINE__, "Failed to allocate user: email \"%s\", name \"%s\", org \"%s\"", email_s, name_s, org_s);
+				}
 		}
 
 
@@ -914,9 +945,9 @@ static UserDetails *GetUserDetailsFromOIDC (request_rec *req_p)
 }
 
 
-static UserDetails *GetUserDetailsFromBasicAuth (request_rec *req_p)
+static User *GetUserFromBasicAuth (request_rec *req_p, GrassrootsServer *grassroots_p)
 {
-	UserDetails *user_p = NULL;
+	User *user_p = NULL;
 
 	if (req_p -> user)
 		{
@@ -925,11 +956,17 @@ static UserDetails *GetUserDetailsFromBasicAuth (request_rec *req_p)
 			/** see if it is a username or an email */
 			if (strchr (req_p -> user, '@'))
 				{
+					user_p = GetUserByEmailAddress (grassroots_p, req_p -> user);
+
+					if (!user_p)
+						{
+		  				PrintErrors (STM_LEVEL_FINE, __FILE__, __LINE__, "Failed to allocate user: email \"%s\"", req_p -> user);
+						}
 
 				}
 			else
 				{
-
+  				PrintErrors (STM_LEVEL_FINE, __FILE__, __LINE__, "Username \"%s\" is not a valid email address", req_p -> user);
 				}
 		}
 
@@ -993,29 +1030,27 @@ static int GrassrootsHandler (request_rec *req_p)
 					if (grassroots_p)
 						{
 							const char *error_s = NULL;
-							UserDetails *user_p = NULL;
+							User *user_p = NULL;
 							json_t *res_p = NULL;
 
 							if (config_p -> glc_user_auth_system_s)
 								{
-									UserAuthSystem **user_auth_systems_pp = s_user_auth_systems_pp;
+									uint32 i = 0;
+									UserAuthSystem *auth_p = s_user_auth_systems_p;
 
-									while (*user_auth_systems_pp)
+									for (i = 0; i < NUM_AUTH_SYSTEMS; ++ i, ++ auth_p)
 										{
-											if (Stricmp ((*user_auth_systems_pp) -> uas_name_s, config_p -> glc_user_auth_system_s) == 0)
+											if (Stricmp (auth_p -> uas_name_s, config_p -> glc_user_auth_system_s) == 0)
 												{
-													user_p = (*user_auth_systems_pp) -> uas_get_user_fn (req_p);
+													user_p = auth_p -> uas_get_user_fn (req_p, grassroots_p);
 
 													if (!user_p)
 														{
 															PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to get user");
 														}
 
-													*user_auth_systems_pp = NULL;
-												}
-											else
-												{
-													++ user_auth_systems_pp;
+													/* force exit from loop */
+													i = NUM_AUTH_SYSTEMS;
 												}
 										}
 
@@ -1064,6 +1099,12 @@ static int GrassrootsHandler (request_rec *req_p)
 							PrintLog (STM_LEVEL_FINER, __FILE__, __LINE__, "json_req_p -> refcount %ld", json_req_p -> refcount);
 							#endif
 							json_decref (json_req_p);
+
+
+							if (user_p)
+								{
+									FreeUser (user_p);
+								}
 
 						}		/* if (grassroots_p) */
 
