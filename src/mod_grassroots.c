@@ -988,33 +988,72 @@ static int GrassrootsHandler (request_rec *req_p)
    */
   if ((req_p -> handler) && (strcmp (req_p -> handler, "grassroots-handler") == 0))
   	{
+			GrassrootsLocationConfig *config_p = ap_get_module_config (req_p -> per_dir_config, &grassroots_module);
   		json_t *json_req_p = NULL;
   		char *grassroots_uri_s = NULL;
+			GrassrootsServer *grassroots_p = NULL;
+			User *user_p = NULL;
 
 
-  		if (req_p -> user)
-  			{
-  				PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "request from user \"%s\"\n", req_p -> user);
-  			}
+			if (req_p -> user)
+				{
+					PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "request for from user \"%s\"\n", req_p -> user);
+				}
 
-  		if (req_p -> headers_in)
-  			{
-  				PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "BEGIN headers in");
-  				apr_table_do (PrintAPRTableToLog, req_p, req_p -> headers_in, NULL);
-  				PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "END headers in");
-  			}
+			if (req_p -> headers_in)
+				{
+					PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "BEGIN headers in for \"%s\"", req_p -> uri);
+					apr_table_do (PrintAPRTableToLog, req_p, req_p -> headers_in, NULL);
+					PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "END headers in for \"%s\"", req_p -> uri);
+				}
 
 
 
   		switch (req_p -> method_number)
 				{
   				case M_POST:
-  					json_req_p = GetRequestBodyAsJSON (req_p);
-  					grassroots_uri_s = req_p -> uri;
+  					{
+							grassroots_uri_s = req_p -> uri;
+							grassroots_p = apr_hash_get (config_p -> glc_servers_p, grassroots_uri_s, APR_HASH_KEY_STRING);
+
+							if (grassroots_p)
+								{
+									if (config_p -> glc_user_auth_system_s)
+										{
+											uint32 i = 0;
+											UserAuthSystem *auth_p = s_user_auth_systems_p;
+
+											for (i = 0; i < NUM_AUTH_SYSTEMS; ++ i, ++ auth_p)
+												{
+													if (Stricmp (auth_p -> uas_name_s, config_p -> glc_user_auth_system_s) == 0)
+														{
+															user_p = auth_p -> uas_get_user_fn (req_p, grassroots_p);
+
+															if (!user_p)
+																{
+																	PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to get user");
+																}
+
+															/* force exit from loop */
+															i = NUM_AUTH_SYSTEMS;
+														}
+												}
+
+										}
+									json_req_p = GetRequestBodyAsJSON (req_p);
+								}
+  					}
   					break;
 
   				case M_GET:
-  					json_req_p = GetRequestParamsAsJSON (req_p, &grassroots_uri_s);
+  					{
+  						json_req_p = GetRequestParamsAsJSON (req_p, &grassroots_uri_s);
+
+  						if (grassroots_uri_s)
+  							{
+  								grassroots_p = apr_hash_get (config_p -> glc_servers_p, grassroots_uri_s, APR_HASH_KEY_STRING);
+  							}
+  					}
   					break;
 
   				default:
@@ -1024,39 +1063,10 @@ static int GrassrootsHandler (request_rec *req_p)
 
   		if (json_req_p && grassroots_uri_s)
   			{
-					GrassrootsLocationConfig *config_p = ap_get_module_config (req_p -> per_dir_config, &grassroots_module);
-					GrassrootsServer *grassroots_p = apr_hash_get (config_p -> glc_servers_p, grassroots_uri_s, APR_HASH_KEY_STRING);
-
 					if (grassroots_p)
 						{
 							const char *error_s = NULL;
-							User *user_p = NULL;
 							json_t *res_p = NULL;
-
-							if (config_p -> glc_user_auth_system_s)
-								{
-									uint32 i = 0;
-									UserAuthSystem *auth_p = s_user_auth_systems_p;
-
-									for (i = 0; i < NUM_AUTH_SYSTEMS; ++ i, ++ auth_p)
-										{
-											if (Stricmp (auth_p -> uas_name_s, config_p -> glc_user_auth_system_s) == 0)
-												{
-													user_p = auth_p -> uas_get_user_fn (req_p, grassroots_p);
-
-													if (!user_p)
-														{
-															PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to get user");
-														}
-
-													/* force exit from loop */
-													i = NUM_AUTH_SYSTEMS;
-												}
-										}
-
-								}
-
-
 
 							res_p = ProcessServerJSONMessage (grassroots_p, json_req_p, user_p, &error_s);
 

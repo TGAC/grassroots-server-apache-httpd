@@ -158,6 +158,7 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p, char **grassroots_uri_ss)
 			const char *SERVICE_S = "/service/";
 			const char *OPERATION_S = "/operation/";
 			const char *api_s = Strrstr (path_s, SERVICE_S);
+			char *root_uri_s = NULL;
 
 			if (api_s)
 				{
@@ -185,19 +186,17 @@ json_t *GetRequestParamsAsJSON (request_rec *req_p, char **grassroots_uri_ss)
 				}
 
 
-			if (json_req_p)
-				{
-					char *root_uri_s = apr_pstrndup (req_p -> pool, req_p -> uri, strlen (req_p -> uri) - strlen (path_s));
+			root_uri_s = apr_pstrndup (req_p -> pool, req_p -> uri, strlen (req_p -> uri) - strlen (path_s));
 
-					if (root_uri_s)
-						{
-							*grassroots_uri_ss = root_uri_s;
-						}
-					else
-						{
-							PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to copy first " SIZET_FMT " chars from \"%s\"", api_s - path_s, path_s);
-						}
+			if (root_uri_s)
+				{
+					*grassroots_uri_ss = root_uri_s;
 				}
+			else
+				{
+					PrintErrors (STM_LEVEL_SEVERE, __FILE__, __LINE__, "Failed to copy first " SIZET_FMT " chars from \"%s\"", api_s - path_s, path_s);
+				}
+
 		}
 
 	return json_req_p;
