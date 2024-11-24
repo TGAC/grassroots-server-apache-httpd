@@ -1,10 +1,10 @@
-LD_LIBRARY_PATH=$LD_LIBRARY_PATH:DIR_GRASSROOTS/lib
-LD_LIBRARY_PATH=$LD_LIBRARY_PATH:DIR_GRASSROOTS_EXTRAS/mongodb-c/lib
-LD_LIBRARY_PATH=$LD_LIBRARY_PATH:DIR_GRASSROOTS_EXTRAS/libuuid/lib
-LD_LIBRARY_PATH=$LD_LIBRARY_PATH:DIR_GRASSROOTS_EXTRAS/sqlite/lib
-LD_LIBRARY_PATH=$LD_LIBRARY_PATH:DIR_GRASSROOTS_EXTRAS/htslib/lib
-LD_LIBRARY_PATH=$LD_LIBRARY_PATH:DIR_GRASSROOTS_EXTRAS/jansson/lib
-LD_LIBRARY_PATH=$LD_LIBRARY_PATH:DIR_GRASSROOTS_EXTRAS/pcre/lib
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/billy/Applications/grassroots/lib
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/billy/Applications/grassroots/extras/mongodb-c/lib
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/billy/Applications/grassroots/extras/libuuid/lib
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/billy/Applications/grassroots/extras/sqlite/lib
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/billy/Applications/grassroots/extras/htslib/lib
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/billy/Applications/grassroots/extras/jansson/lib
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/billy/Applications/grassroots/extras/pcre/lib
 
 
 export LD_LIBRARY_PATH
