@@ -174,6 +174,13 @@ typedef struct
 
 	server_rec *glc_server_p;
 
+
+	/**
+	 * The Prefix for any user auth header keys. For example, the value specified by OIDCClaimPrefix
+	 * in mod_auth_openidc.
+	 */
+	char *glc_user_auth_claim_s;
+
 } GrassrootsLocationConfig;
 
 
