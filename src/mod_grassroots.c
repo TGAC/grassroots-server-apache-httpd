@@ -1301,7 +1301,7 @@ static const char *GetClaimHeaderValue (request_rec *req_p, const char *claim_pr
 	const char *value_s = NULL;
 	const char *key_s = NULL;
 
-	if (IsStringEmpty (claim_prefix_s))
+	if (!IsStringEmpty (claim_prefix_s))
 		{
 			claim_prefix_s = default_claim_prefix_s;
 		}
