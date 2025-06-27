@@ -1018,18 +1018,27 @@ static int GrassrootsHandler (request_rec *req_p)
   		char *grassroots_uri_s = NULL;
 			GrassrootsServer *grassroots_p = NULL;
 			User *user_p = NULL;
+			request_rec *r_p = req_p;
 
-
-			if (req_p -> user)
+			while (r_p != NULL)
 				{
-					PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "request for from user \"%s\"\n", req_p -> user);
-				}
+					PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "BEGIN for \"%s\"", r_p -> uri);
 
-			if (req_p -> headers_in)
-				{
-					PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "BEGIN headers in for \"%s\"", req_p -> uri);
-					apr_table_do (PrintAPRTableToLog, req_p, req_p -> headers_in, NULL);
-					PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "END headers in for \"%s\"", req_p -> uri);
+					if (r_p -> user)
+						{
+							PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "request from user \"%s\"\n", r_p -> user);
+						}
+
+					if (r_p -> headers_in)
+						{
+							PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "BEGIN headers in for \"%s\"", r_p -> uri);
+							apr_table_do (PrintAPRTableToLog, req_p, r_p -> headers_in, NULL);
+							PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "END headers in for \"%s\"", r_p -> uri);
+						}
+
+					PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "END for \"%s\"", r_p -> uri);
+
+					r_p = r_p -> next;
 				}
 
 
