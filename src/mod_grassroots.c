@@ -1036,6 +1036,13 @@ static int GrassrootsHandler (request_rec *req_p)
 							PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "END headers in for \"%s\"", r_p -> uri);
 						}
 
+					if (r_p -> headers_out)
+						{
+							PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "BEGIN headers out for \"%s\"", r_p -> uri);
+							apr_table_do (PrintAPRTableToLog, req_p, r_p -> headers_out, NULL);
+							PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "END headers out for \"%s\"", r_p -> uri);
+						}
+
 					PrintLog (STM_LEVEL_FINE, __FILE__, __LINE__, "END for \"%s\"", r_p -> uri);
 
 					r_p = r_p -> next;
